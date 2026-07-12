@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a4f46">
+<title>Audit CRM — คอนแทคลูกค้างานสอบบัญชี</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --p:#0a4f46; --p2:#0e8a74; --bg:#f2f6f5; --card:#ffffff;
+  --ink:#1b2b28; --muted:#586b65; --line:#dfe9e6;
+  --green:#0e9f6e; --red:#e02424; --amber:#c27803; --blue:#1a56db;
+  --radius:14px; --shadow:0 1px 3px rgba(10,60,50,.08),0 4px 14px rgba(10,60,50,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;padding-bottom:76px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px}
+
+/* ===== header ===== */
+header{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:1100px;margin:0 auto}
+.htitle{font-weight:800;font-size:18px;line-height:1.2}
+.htitle small{display:block;font-weight:400;font-size:11.5px;opacity:.78}
+#syncBtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:6px 9px;font-size:16px;line-height:1;color:#fff}
+
+/* ===== bottom nav ===== */
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:60;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:none;padding:9px 2px 7px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:600}
+nav button .ico{font-size:20px;line-height:1;transition:transform .15s ease-out}
+nav button.active{color:var(--p2)}
+nav button.active .ico{transform:scale(1.12)}
+
+main{max-width:1100px;margin:0 auto;padding:14px 12px 20px}
+.page{display:none}
+.page.show{display:block}
+h2{font-size:16px;font-weight:800;margin:18px 2px 10px;color:var(--p)}
+h2:first-child{margin-top:2px}
+
+/* ===== KPI ===== */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:760px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px}
+.kpi .lb{font-size:12px;color:var(--muted);font-weight:600}
+.kpi .v{font-size:21px;font-weight:800;margin-top:2px;line-height:1.15}
+.kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.hero{grid-column:1/-1;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff}
+.kpi.hero .lb,.kpi.hero .sub{color:rgba(255,255,255,.82)}
+.kpi.hero .v{font-size:30px}
+@media(min-width:760px){.kpi.hero{grid-column:auto}}
+.kpi.gd .v{color:var(--green)} .kpi.bl .v{color:var(--blue)} .kpi.am .v{color:var(--amber)}
+
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.chartbox{position:relative;height:240px}
+
+/* ===== chips / badges ===== */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;color:var(--ink)}
+.chip.on{border-color:var(--p2);background:#e6f4f0;color:var(--p)}
+.chip:active{background:#e6f4f0}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+.b-green{background:#def7ec;color:#046c4e}.b-red{background:#fde8e8;color:#c81e1e}
+.b-amber{background:#fdf6b2;color:#8e4b10}.b-blue{background:#e1effe;color:#1e429f}
+.b-gray{background:#eceff3;color:#5b6b78}
+
+/* ===== contact list ===== */
+.fbar{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;margin-bottom:10px}
+.fbar input[type=search]{width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:10px}
+.lsum{font-size:13px;color:var(--muted);margin:2px 4px 10px;font-weight:600}
+.item{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px}
+.item .top{display:flex;gap:10px;align-items:flex-start}
+.item .seq{flex:none;width:30px;height:30px;border-radius:9px;background:#e6f4f0;color:var(--p);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.item .nm{font-weight:800;font-size:14.5px;line-height:1.3}
+.item .org{font-size:12px;color:var(--muted)}
+.item .meta{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 0}
+.item .rmk{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.5;background:#f6faf9;border-radius:8px;padding:6px 10px}
+.item .ct{font-size:12px;color:var(--muted);margin-top:5px}
+.item .ct a{color:var(--blue);text-decoration:none;font-weight:600}
+.acts{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;align-items:center}
+.acts button{border:none;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700}
+.a-st{background:#e6f4f0;color:var(--p)}
+.a-edit{background:#eceff3;color:#3f4f5c}.a-del{background:#fde8e8;color:#c81e1e}
+.a-mv{background:#fff;border:1.5px solid var(--line) !important;color:var(--muted);padding:6px 10px !important}
+.a-mv:disabled{opacity:.35;cursor:default}
+.empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 18px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
+.empty .big{font-size:34px;margin-bottom:6px}
+
+/* ===== budget rows ===== */
+.brow{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 14px;margin-bottom:10px}
+.brow .bnm{font-weight:800;font-size:14px;line-height:1.3;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.brow .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:9px;align-items:end}
+.brow label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.brow input{width:100%;padding:8px 9px;border:1.5px solid var(--line);border-radius:10px;font-size:14.5px;font-weight:700;text-align:right}
+.brow input:focus{outline:none;border-color:var(--p2)}
+.brow .rev{font-weight:800;font-size:15px;color:var(--p);text-align:right;padding:8px 2px}
+.brow .rev small{display:block;font-weight:700;font-size:11px;color:var(--muted)}
+
+/* ===== form ===== */
+.frm{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.frow.one{grid-template-columns:1fr}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:3px}
+.frm input,.frm select,.frm textarea{width:100%;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.frm input:focus,.frm select:focus,.frm textarea:focus{outline:none;border-color:var(--p2)}
+.stgrid{display:grid;gap:7px;margin-bottom:10px}
+.stopt{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;font-size:13.5px;font-weight:600;background:#fff}
+.stopt input{width:18px;height:18px;accent-color:var(--p2);flex:none}
+.stopt.sel{border-color:var(--p2);background:#e6f4f0}
+.fsec{font-size:13px;font-weight:800;color:var(--p2);margin:16px 0 8px;padding-top:10px;border-top:1px dashed var(--line)}
+.btn{border:none;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:800}
+.btn-p{background:var(--p2);color:#fff;width:100%}
+.btn-g{background:#eceff3;color:var(--ink)}
+.btnrow{display:flex;gap:10px;margin-top:14px}
+
+/* ===== data page ===== */
+.dbtn{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:none;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px;text-align:left}
+.dbtn .ico{font-size:22px}
+.dbtn .t{font-weight:800;font-size:14.5px}
+.dbtn .d{font-size:12px;color:var(--muted)}
+.note{background:#fffbeb;border:1px solid #fce96a;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:12px}
+#toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;transition:.25s;z-index:99;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:.95}
+
+/* ===== unlock ===== */
+#unlock{position:fixed;inset:0;background:linear-gradient(135deg,var(--p),var(--p2));z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.ubox{background:#fff;border-radius:18px;padding:26px 22px;max-width:360px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.ubox h1{font-size:19px;color:var(--p);margin-bottom:6px}
+.ubox p{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.ubox input{width:100%;padding:12px;border:2px solid var(--line);border-radius:12px;font-size:17px;text-align:center;letter-spacing:1px;margin-bottom:10px}
+.ubox input:focus{outline:none;border-color:var(--p2)}
+.umsg{font-size:12.5px;color:var(--red);min-height:18px;margin-bottom:6px;font-weight:600}
+.ubox .skip{background:none;border:none;color:var(--muted);font-size:12px;margin-top:10px;text-decoration:underline}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div class="htitle">🤝 Audit CRM<small>คอนแทคลูกค้างานสอบบัญชี — TPN Audit</small></div>
+    <button id="syncBtn" onclick="syncTap()" title="Sync ข้ามเครื่อง">☁️</button>
+  </div>
+</header>
+
+<main>
+<!-- ============ CONTACTS ============ -->
+<section class="page show" id="pg-list">
+  <div class="chips" id="stageChips"></div>
+  <div class="fbar"><input type="search" id="fSearch" placeholder="🔍 ค้นหาชื่อ / บริษัท / remark"></div>
+  <div class="lsum" id="listSum"></div>
+  <div id="listBox"></div>
+</section>
+
+<!-- ============ BUDGET / DASHBOARD ============ -->
+<section class="page" id="pg-budget">
+  <h2 id="budTitle">💰 Expected Budget ปีหน้า</h2>
+  <div class="kpis" id="budKpis"></div>
+
+  <h2>รายได้คาดต่อลูกค้า</h2>
+  <div class="card"><div class="chartbox"><canvas id="chBud"></canvas></div></div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 2px 10px">
+    <h2 style="margin:0">กรอกคาดการณ์รายลูกค้า</h2>
+    <button onclick="exportBudExcel()" style="border:none;border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;background:var(--p2);color:#fff;white-space:nowrap">📤 Excel</button>
+  </div>
+  <div class="lsum" style="margin-top:0">คาดว่าลูกค้าคนนี้จะส่งงบมากี่งบ × ค่าสอบเฉลี่ยต่องบ = รายได้คาด</div>
+  <div id="budBox"></div>
+</section>
+
+<!-- ============ FORM ============ -->
+<section class="page" id="pg-form">
+  <h2 id="formTitle">เพิ่มคอนแทคใหม่</h2>
+  <div class="frm">
+    <input type="hidden" id="f_id">
+    <div class="frow one"><div><label>ชื่อคอนแทค / ลูกค้า *</label><input id="f_name" placeholder="เช่น พี่หนึ่ง สำนักงานบัญชี A"></div></div>
+    <div class="frow">
+      <div><label>บริษัท / สังกัด</label><input id="f_org" placeholder="บจ. / สนง.บัญชี"></div>
+      <div><label>เบอร์โทร</label><input id="f_phone" inputmode="tel" placeholder="08x-xxx-xxxx"></div>
+    </div>
+    <div class="frow one"><div><label>Line ID</label><input id="f_line" placeholder="@ หรือ id"></div></div>
+
+    <div class="fsec">📶 Stage — ถึงขั้นไหนแล้ว</div>
+    <div class="stgrid" id="stageOpts"></div>
+
+    <div class="frow one"><div><label>Remark / โน้ต</label><textarea id="f_remark" rows="3" placeholder="เช่น รอตามอีกทีเดือนหน้า, ชอบให้ทักช่วงเย็น"></textarea></div></div>
+
+    <div class="fsec">💰 Expected Budget ปีหน้า (แก้ทีหลังในแท็บ Budget ได้)</div>
+    <div class="frow">
+      <div><label>คาดว่าจะได้ (งบ)</label><input id="f_expQty" type="number" inputmode="numeric" min="0" value="0"></div>
+      <div><label>ค่าสอบเฉลี่ย (บาท/งบ)</label><input id="f_expAvg" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn btn-g" onclick="resetForm()">ล้างฟอร์ม</button>
+      <button class="btn btn-p" onclick="saveForm()">💾 บันทึก</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section class="page" id="pg-data">
+  <h2>☁️ Sync ข้ามเครื่อง (คอม + มือถือ)</h2>
+  <div class="card" id="syncBox"></div>
+
+  <h2>สำรองข้อมูล</h2>
+  <div class="note">💡 ข้อมูลเก็บใน localStorage ของแต่ละเครื่อง — ถ้าเปิด Sync ไว้ ทุกเครื่องจะดึง/ส่งข้อมูลหากันอัตโนมัติผ่าน cloud (เข้ารหัสด้วย PIN ก่อนส่งเสมอ) แนะนำ Export JSON สำรองไว้เป็นระยะ</div>
+  <button class="dbtn" onclick="exportJSON()"><span class="ico">🗄️</span><span><span class="t">สำรองข้อมูล (JSON)</span><br><span class="d">ดาวน์โหลดคอนแทคทั้งหมด ไว้ย้ายเครื่อง/กันข้อมูลหาย</span></span></button>
+  <button class="dbtn" onclick="document.getElementById('impJson').click()"><span class="ico">♻️</span><span><span class="t">กู้คืนจาก JSON</span><br><span class="d">แทนที่ข้อมูลทั้งหมดด้วยไฟล์สำรอง</span></span></button>
+  <input type="file" id="impJson" accept=".json" style="display:none">
+  <button class="dbtn" onclick="resetAll()"><span class="ico">🗑️</span><span><span class="t" style="color:var(--red)">ล้างข้อมูลทั้งหมด</span><br><span class="d">ลบคอนแทคทุกรายการในเครื่องนี้</span></span></button>
+  <div class="lsum" id="dataStat"></div>
+</section>
+</main>
+
+<nav>
+  <button class="active" data-pg="pg-list"><span class="ico">👥</span>ลูกค้า</button>
+  <button data-pg="pg-budget"><span class="ico">💰</span>Budget</button>
+  <button data-pg="pg-form" onclick="resetForm()"><span class="ico">➕</span>เพิ่ม</button>
+  <button data-pg="pg-data"><span class="ico">⚙️</span>ข้อมูล</button>
+</nav>
+<div id="toast"></div>
+
+<div id="unlock" style="display:none">
+  <div class="ubox">
+    <div style="font-size:38px;margin-bottom:8px">🔐</div>
+    <h1>Audit CRM</h1>
+    <p>ใส่รหัส PIN เพื่อเชื่อม Sync ข้ามเครื่อง<br>(PIN ตัวเดียวกับ Audit Tracker — ใส่ครั้งเดียว เครื่องนี้จะ sync อัตโนมัติ)</p>
+    <input id="pinInput" type="text" placeholder="ใส่รหัส PIN" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="umsg" id="pinMsg"></div>
+    <button class="btn btn-p" onclick="tryUnlock()">🔗 เชื่อมต่อ</button>
+    <button class="skip" onclick="skipUnlock()">ไว้ก่อน ใช้แบบไม่ sync</button>
+  </div>
+</div>
+
+<script src="sync-token.enc.js"></script>
+<script>
+/* ================= state ================= */
+const LS_KEY='auditCrmData';
+let records=[];
+try{
+  const raw=localStorage.getItem(LS_KEY);
+  if(raw){records=JSON.parse(raw).records||[];}
+}catch(e){records=[];}
+function save(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify({version:1,records}));}catch(e){toast('⚠️ บันทึกไม่สำเร็จ: พื้นที่เต็ม');}
+  if(typeof scheduleSync==='function')scheduleSync();
+}
+const live=()=>records.filter(r=>!r.deleted).sort((a,b)=>(a.order||0)-(b.order||0));
+
+const STAGES={
+  worked:{lb:'เคยมีส่งงานแล้ว',ico:'🤝',cls:'b-green'},
+  added:{lb:'Add Line + ฝากคอนแทคแล้ว',ico:'💬',cls:'b-blue'},
+  none:{lb:'ยังไม่ได้แอดไลน์',ico:'⏳',cls:'b-amber'},
+};
+const STAGE_ORDER=['worked','added','none'];
+const THM=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const nextYearBE=new Date().getFullYear()+543+1;
+const fmtB=n=>'฿'+Math.round(n).toLocaleString('th-TH');
+const fmtN=n=>n.toLocaleString('th-TH');
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+const rev=r=>(+r.expQty||0)*(+r.expAvg||0);
+
+/* ================= toast / nav ================= */
+let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.pg)));
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('show',p.id===id));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.pg===id));
+  if(id==='pg-list')renderList();
+  if(id==='pg-budget')renderBudget();
+  if(id==='pg-data')renderDataStat();
+  window.scrollTo(0,0);
+}
+
+/* ================= contacts ================= */
+let stageFilter='';
+document.getElementById('fSearch').addEventListener('input',renderList);
+function setStageFilter(s){stageFilter=stageFilter===s?'':s;renderList();}
+function filtered(){
+  const q=document.getElementById('fSearch').value.trim().toLowerCase();
+  return live().filter(r=>{
+    if(stageFilter&&r.stage!==stageFilter)return false;
+    if(q&&!((r.name||'').toLowerCase().includes(q)||(r.org||'').toLowerCase().includes(q)||(r.remark||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+function renderList(){
+  const all=live();
+  document.getElementById('stageChips').innerHTML=
+    `<button class="chip ${stageFilter===''?'on':''}" onclick="setStageFilter('')">ทั้งหมด ${fmtN(all.length)}</button>`+
+    STAGE_ORDER.map(k=>`<button class="chip ${stageFilter===k?'on':''}" onclick="setStageFilter('${k}')">${STAGES[k].ico} ${STAGES[k].lb} ${fmtN(all.filter(r=>r.stage===k).length)}</button>`).join('');
+  const rs=filtered();
+  const q=document.getElementById('fSearch').value.trim();
+  const canMove=!stageFilter&&!q;
+  document.getElementById('listSum').textContent=rs.length?`แสดง ${fmtN(rs.length)} คอนแทค`:'';
+  if(!all.length){
+    document.getElementById('listBox').innerHTML=`<div class="empty"><div class="big">🤝</div>ยังไม่มีคอนแทคลูกค้า<br>กดแท็บ <b>➕ เพิ่ม</b> ด้านล่าง เพื่อบันทึกลูกค้ารายแรก</div>`;
+    return;
+  }
+  if(!rs.length){
+    document.getElementById('listBox').innerHTML=`<div class="empty">ไม่พบคอนแทคตามที่ค้นหา</div>`;
+    return;
+  }
+  document.getElementById('listBox').innerHTML=rs.map((r,i)=>{
+    const st=STAGES[r.stage]||STAGES.none;
+    const others=STAGE_ORDER.filter(k=>k!==r.stage);
+    const seq=all.findIndex(x=>x.id===r.id)+1;
+    return `<div class="item">
+      <div class="top">
+        <div class="seq">${seq}</div>
+        <div style="flex:1;min-width:0">
+          <div class="nm">${esc(r.name)}</div>
+          ${r.org?`<div class="org">${esc(r.org)}</div>`:''}
+        </div>
+      </div>
+      <div class="meta">
+        <span class="badge ${st.cls}">${st.ico} ${st.lb}</span>
+        ${rev(r)>0?`<span class="badge b-gray">💰 ${fmtN(+r.expQty||0)} งบ · ${fmtB(rev(r))}</span>`:''}
+      </div>
+      ${(r.phone||r.line)?`<div class="ct">${r.phone?`📞 <a href="tel:${esc(r.phone.replace(/[^0-9+]/g,''))}">${esc(r.phone)}</a>`:''}${r.phone&&r.line?' · ':''}${r.line?`💬 Line: ${esc(r.line)}`:''}</div>`:''}
+      ${r.remark?`<div class="rmk">📝 ${esc(r.remark)}</div>`:''}
+      <div class="acts">
+        ${others.map(k=>`<button class="a-st" onclick="setStage('${r.id}','${k}')">→ ${STAGES[k].ico} ${STAGES[k].lb}</button>`).join('')}
+        <button class="a-edit" onclick="editRec('${r.id}')">✏️ แก้ไข</button>
+        ${canMove?`<button class="a-mv" onclick="moveRec('${r.id}',-1)" ${i===0?'disabled':''}>↑</button>
+        <button class="a-mv" onclick="moveRec('${r.id}',1)" ${i===rs.length-1?'disabled':''}>↓</button>`:''}
+        <button class="a-del" onclick="delRec('${r.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function findRec(id){return records.find(r=>r.id===id);}
+function setStage(id,st){const r=findRec(id);if(!r)return;r.stage=st;r.updatedAt=Date.now();save();renderList();toast(STAGES[st].ico+' '+r.name+' → '+STAGES[st].lb);}
+function moveRec(id,dir){
+  const all=live();
+  const i=all.findIndex(r=>r.id===id);
+  const j=i+dir;
+  if(i<0||j<0||j>=all.length)return;
+  const a=all[i],b=all[j];
+  const tmp=a.order;a.order=b.order;b.order=tmp;
+  a.updatedAt=Date.now();b.updatedAt=Date.now();
+  save();renderList();
+}
+function delRec(id){const r=findRec(id);if(!r)return;if(!confirm('ลบ "'+r.name+'" ?'))return;r.deleted=true;r.updatedAt=Date.now();save();renderList();toast('ลบแล้ว');}
+
+/* ================= form ================= */
+const F=id=>document.getElementById(id);
+function renderStageOpts(sel){
+  document.getElementById('stageOpts').innerHTML=STAGE_ORDER.map(k=>`
+    <label class="stopt ${sel===k?'sel':''}">
+      <input type="radio" name="f_stage" value="${k}" ${sel===k?'checked':''}
+        onchange="document.querySelectorAll('.stopt').forEach(e=>e.classList.remove('sel'));this.closest('.stopt').classList.add('sel')">
+      <span>${STAGES[k].ico} ${STAGES[k].lb}</span>
+    </label>`).join('');
+}
+function resetForm(){
+  F('f_id').value='';document.getElementById('formTitle').textContent='เพิ่มคอนแทคใหม่';
+  ['f_name','f_org','f_phone','f_line','f_remark'].forEach(id=>F(id).value='');
+  F('f_expQty').value=0;F('f_expAvg').value=0;
+  renderStageOpts('none');
+}
+function editRec(id){
+  const r=findRec(id);if(!r)return;
+  resetForm();
+  document.getElementById('formTitle').textContent='แก้ไข: '+r.name;
+  F('f_id').value=r.id;F('f_name').value=r.name;F('f_org').value=r.org||'';
+  F('f_phone').value=r.phone||'';F('f_line').value=r.line||'';F('f_remark').value=r.remark||'';
+  F('f_expQty').value=r.expQty||0;F('f_expAvg').value=r.expAvg||0;
+  renderStageOpts(r.stage||'none');
+  showPage('pg-form');
+}
+function saveForm(){
+  const name=F('f_name').value.trim();
+  if(!name){toast('⚠️ กรุณาใส่ชื่อคอนแทค');F('f_name').focus();return;}
+  const id=F('f_id').value;
+  const rec=id?findRec(id):{id:'c'+Date.now()+Math.random().toString(36).slice(2,6),order:Math.max(0,...records.map(r=>r.order||0))+1};
+  const stEl=document.querySelector('input[name=f_stage]:checked');
+  Object.assign(rec,{
+    name,org:F('f_org').value.trim(),phone:F('f_phone').value.trim(),line:F('f_line').value.trim(),
+    stage:stEl?stEl.value:'none',remark:F('f_remark').value.trim(),
+    expQty:+F('f_expQty').value||0,expAvg:+F('f_expAvg').value||0,
+    updatedAt:Date.now(),
+  });
+  if(!id)records.push(rec);
+  save();toast('💾 บันทึกแล้ว: '+name);
+  resetForm();showPage('pg-list');
+}
+
+/* ================= budget / dashboard ================= */
+let chBud=null;
+function renderBudget(){
+  document.getElementById('budTitle').textContent='💰 Expected Budget ปีหน้า (พ.ศ. '+nextYearBE+')';
+  const rs=live();
+  const withBud=rs.filter(r=>rev(r)>0);
+  const totQty=rs.reduce((s,r)=>s+(+r.expQty||0),0);
+  const totRev=rs.reduce((s,r)=>s+rev(r),0);
+  const avgAll=totQty?totRev/totQty:0;
+  document.getElementById('budKpis').innerHTML=`
+    <div class="kpi hero"><div class="lb">รายได้งานสอบคาดปี ${nextYearBE}</div><div class="v">${fmtB(totRev)}</div><div class="sub">จากลูกค้า ${fmtN(withBud.length)} ราย</div></div>
+    <div class="kpi bl"><div class="lb">งบที่คาดว่าจะได้</div><div class="v">${fmtN(totQty)} งบ</div><div class="sub">รวมทุกลูกค้า</div></div>
+    <div class="kpi gd"><div class="lb">ค่าสอบเฉลี่ย/งบ</div><div class="v">${fmtB(avgAll)}</div><div class="sub">ถัวเฉลี่ยถ่วงน้ำหนัก</div></div>
+    <div class="kpi am"><div class="lb">คอนแทคทั้งหมด</div><div class="v">${fmtN(rs.length)}</div><div class="sub">${fmtN(rs.length-withBud.length)} รายยังไม่กรอก budget</div></div>`;
+
+  /* chart: top clients by expected revenue */
+  const top=[...withBud].sort((a,b)=>rev(b)-rev(a)).slice(0,12);
+  if(typeof Chart!=='undefined'){
+    if(chBud)chBud.destroy();
+    chBud=new Chart(document.getElementById('chBud'),{
+      type:'bar',
+      data:{labels:top.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),
+        datasets:[{label:'รายได้คาด (บาท)',data:top.map(r=>rev(r)),backgroundColor:'#0e8a74',borderRadius:5}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtB(c.raw)}}},
+        scales:{x:{beginAtZero:true,ticks:{callback:v=>v>=1000?(v/1000)+'k':v}}}}});
+  }
+
+  /* per-client input rows */
+  if(!rs.length){
+    document.getElementById('budBox').innerHTML=`<div class="empty"><div class="big">💰</div>ยังไม่มีคอนแทค — เพิ่มลูกค้าที่แท็บ <b>➕ เพิ่ม</b> ก่อน<br>แล้วกลับมากรอกจำนวนงบที่คาดว่าจะได้</div>`;
+    return;
+  }
+  document.getElementById('budBox').innerHTML=rs.map(r=>{
+    const st=STAGES[r.stage]||STAGES.none;
+    return `<div class="brow">
+      <div class="bnm">${esc(r.name)} <span class="badge ${st.cls}">${st.ico} ${st.lb}</span></div>
+      <div class="grid">
+        <div><label>จำนวนงบ (คาด)</label><input type="number" inputmode="numeric" min="0" value="${+r.expQty||0}" onchange="setBud('${r.id}','expQty',this.value)"></div>
+        <div><label>เฉลี่ย บาท/งบ</label><input type="number" inputmode="decimal" min="0" step="any" value="${+r.expAvg||0}" onchange="setBud('${r.id}','expAvg',this.value)"></div>
+        <div class="rev" id="rev_${r.id}"><small>รายได้คาด</small>${fmtB(rev(r))}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function setBud(id,key,val){
+  const r=findRec(id);if(!r)return;
+  r[key]=Math.max(0,+val||0);r.updatedAt=Date.now();save();
+  const el=document.getElementById('rev_'+id);
+  if(el)el.innerHTML='<small>รายได้คาด</small>'+fmtB(rev(r));
+  /* refresh KPIs + chart without re-rendering inputs (keeps focus flow) */
+  const rs=live();
+  const withBud=rs.filter(x=>rev(x)>0);
+  const totQty=rs.reduce((s,x)=>s+(+x.expQty||0),0);
+  const totRev=rs.reduce((s,x)=>s+rev(x),0);
+  document.getElementById('budKpis').innerHTML=`
+    <div class="kpi hero"><div class="lb">รายได้งานสอบคาดปี ${nextYearBE}</div><div class="v">${fmtB(totRev)}</div><div class="sub">จากลูกค้า ${fmtN(withBud.length)} ราย</div></div>
+    <div class="kpi bl"><div class="lb">งบที่คาดว่าจะได้</div><div class="v">${fmtN(totQty)} งบ</div><div class="sub">รวมทุกลูกค้า</div></div>
+    <div class="kpi gd"><div class="lb">ค่าสอบเฉลี่ย/งบ</div><div class="v">${fmtB(totQty?totRev/totQty:0)}</div><div class="sub">ถัวเฉลี่ยถ่วงน้ำหนัก</div></div>
+    <div class="kpi am"><div class="lb">คอนแทคทั้งหมด</div><div class="v">${fmtN(rs.length)}</div><div class="sub">${fmtN(rs.length-withBud.length)} รายยังไม่กรอก budget</div></div>`;
+  if(typeof Chart!=='undefined'&&chBud){
+    const top=[...withBud].sort((a,b)=>rev(b)-rev(a)).slice(0,12);
+    chBud.data.labels=top.map(x=>x.name.length>18?x.name.slice(0,17)+'…':x.name);
+    chBud.data.datasets[0].data=top.map(x=>rev(x));
+    chBud.update();
+  }
+}
+function exportBudExcel(){
+  if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
+  const rs=live();
+  if(!rs.length){toast('⚠️ ยังไม่มีข้อมูล');return;}
+  const hdr=['ลำดับ','ชื่อคอนแทค','บริษัท/สังกัด','Stage','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด','Remark'];
+  const rows=rs.map((r,i)=>[i+1,r.name,r.org||'',(STAGES[r.stage]||STAGES.none).lb,+r.expQty||0,+r.expAvg||0,0,r.remark||'']);
+  const totalRow=Array(hdr.length).fill('');totalRow[1]='รวม '+rs.length+' ราย';
+  const ws=XLSX.utils.aoa_to_sheet([hdr,...rows,totalRow]);
+  const lastRow=rows.length+1;
+  rows.forEach((_,i)=>{const n=i+2;
+    ws[XLSX.utils.encode_cell({r:i+1,c:6})]={t:'n',f:`E${n}*F${n}`};});
+  [4,6].forEach(c=>{const L=XLSX.utils.encode_col(c);
+    ws[XLSX.utils.encode_cell({r:lastRow,c})]={t:'n',f:`SUM(${L}2:${L}${lastRow})`};});
+  ws['!cols']=[{wch:6},{wch:30},{wch:22},{wch:24},{wch:13},{wch:14},{wch:13},{wch:30}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Budget '+nextYearBE);
+  XLSX.writeFile(wb,'Expected Budget '+nextYearBE+'.xlsx');
+  toast('📤 Export แล้ว '+rs.length+' ราย (มีสูตร)');
+}
+
+/* ================= backup ================= */
+function todayBE(){const d=new Date();return (d.getFullYear()+543)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+function exportJSON(){download('audit-crm-backup-'+todayBE()+'.json',new Blob([JSON.stringify({version:1,records},null,1)],{type:'application/json'}));toast('🗄️ สำรองข้อมูลแล้ว');}
+document.getElementById('impJson').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{
+    const d=JSON.parse(rd.result);const recs=d.records||d;
+    if(!Array.isArray(recs))throw 0;
+    if(!confirm('แทนที่ข้อมูลทั้งหมด ('+records.length+' รายการ) ด้วยไฟล์สำรอง ('+recs.length+' รายการ)?'))return;
+    records=recs;save();renderList();renderDataStat();toast('♻️ กู้คืนแล้ว '+recs.length+' รายการ');
+  }catch(err){toast('⚠️ ไฟล์ไม่ถูกต้อง');}};
+  rd.readAsText(f);e.target.value='';
+});
+function resetAll(){
+  if(syncCfg&&syncCfg.token){toast('⚠️ กำลัง Sync อยู่ — กด "เลิกเชื่อมต่อ" ก่อน ไม่งั้นข้อมูลจะถูกดึงกลับจาก cloud');return;}
+  if(!confirm('ลบคอนแทคทั้งหมด '+records.length+' รายการ?'))return;
+  if(!confirm('ยืนยันอีกครั้ง — ข้อมูลจะหายทั้งหมด'))return;
+  records=[];save();renderList();renderDataStat();toast('🗑️ ล้างข้อมูลแล้ว');
+}
+function renderDataStat(){
+  const all=live();
+  document.getElementById('dataStat').innerHTML='ทั้งหมด '+fmtN(all.length)+' คอนแทค — '+
+    STAGE_ORDER.map(k=>STAGES[k].ico+' '+fmtN(all.filter(r=>r.stage===k).length)).join(' | ');
+  renderSyncBox();
+}
+
+/* ================= cloud sync (GitHub — ใช้ repo เดียวกับ audit-tracker) ================= */
+const SYNC_KEY='auditCrmSync';
+const GH_FILE='https://api.github.com/repos/tpnaudit/audit-tracker-data/contents/crm.enc.json';
+const GH_BRANCH='main';
+let syncCfg=null,syncing=false,syncTimer=null;
+try{syncCfg=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){}
+function saveSync(){localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg));}
+
+function u8b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s);}
+function b64u8(b){const s=atob(b);const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+const keyCache={};
+async function deriveKey(pin,saltB64,iter){
+  const ck=pin+'|'+saltB64+'|'+iter;
+  if(!keyCache[ck]){
+    const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);
+    keyCache[ck]=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64u8(saltB64),iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  }
+  return keyCache[ck];
+}
+async function decPayload(e,pin){
+  const key=await deriveKey(pin,e.salt,e.iter);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u8(e.iv)},key,b64u8(e.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function encPayload(obj,pin){
+  if(!syncCfg.salt)syncCfg.salt=u8b64(crypto.getRandomValues(new Uint8Array(16)));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pin,syncCfg.salt,600000);
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj))));
+  return {v:1,iter:600000,salt:syncCfg.salt,iv:u8b64(iv),ct:u8b64(ct)};
+}
+const ghHdr=()=>({Authorization:'Bearer '+syncCfg.token,Accept:'application/vnd.github+json'});
+async function ghGet(){
+  const res=await fetch(GH_FILE+'?ref='+GH_BRANCH+'&t='+Date.now(),{headers:ghHdr()});
+  if(res.status===404)return null;
+  if(!res.ok)throw new Error('GitHub GET '+res.status);
+  const j=await res.json();
+  if(!j.content&&j.download_url){j.text=await (await fetch(j.download_url)).text();}
+  else j.text=atob(j.content.replace(/\n/g,''));
+  return j;
+}
+async function ghPut(text,sha){
+  const body={message:'crm sync '+new Date().toISOString(),content:btoa(text),branch:GH_BRANCH};
+  if(sha)body.sha=sha;
+  const res=await fetch(GH_FILE,{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)});
+  if(!res.ok)throw new Error('GitHub PUT '+res.status);
+  return res.json();
+}
+function mergeData(remote){
+  const map=new Map(records.map(r=>[r.id,r]));
+  (remote.records||[]).forEach(rr=>{
+    const lr=map.get(rr.id);
+    if(!lr)records.push(rr);
+    else if((rr.updatedAt||0)>(lr.updatedAt||0))Object.assign(lr,rr);
+  });
+}
+function scheduleSync(){
+  if(!syncCfg||!syncCfg.token||syncing)return;
+  clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),4000);
+}
+async function syncNow(manual,retried){
+  if(!syncCfg||!syncCfg.token||!syncCfg.pin){if(manual){toast('⚠️ ยังไม่ได้ตั้งค่า Sync');showPage('pg-data');}return;}
+  if(syncing)return;
+  syncing=true;setSyncUI('⏳');
+  try{
+    const remote=await ghGet();
+    let sha=null;
+    if(remote){
+      sha=remote.sha;
+      const data=await decPayload(JSON.parse(remote.text),syncCfg.pin);
+      mergeData(data);
+      try{localStorage.setItem(LS_KEY,JSON.stringify({version:1,records}));}catch(e){}
+    }
+    const enc=await encPayload({records,pushedAt:Date.now()},syncCfg.pin);
+    await ghPut(JSON.stringify(enc),sha);
+    syncCfg.lastSync=Date.now();saveSync();
+    setSyncUI('ok');
+    const pg=document.querySelector('.page.show').id;
+    if(pg==='pg-list')renderList();else if(pg==='pg-budget')renderBudget();else if(pg==='pg-data')renderDataStat();
+    if(manual)toast('☁️ Sync สำเร็จ ('+fmtN(live().length)+' คอนแทค)');
+  }catch(err){
+    console.error('sync:',err);
+    syncing=false;
+    if(String(err.message).includes('409')&&!retried)return syncNow(manual,true);
+    if(String(err.name)==='OperationError'){setSyncUI('err');if(manual)toast('⚠️ PIN ไม่ตรงกับข้อมูลบน cloud');return;}
+    setSyncUI('err');
+    if(manual)toast('⚠️ Sync ไม่สำเร็จ: '+err.message);
+  }finally{syncing=false;}
+}
+function setSyncUI(st){
+  const b=document.getElementById('syncBtn');
+  b.textContent=st==='⏳'?'⏳':st==='err'?'☁️⚠️':st==='ok'?'☁️✓':'☁️';
+  if(document.getElementById('pg-data').classList.contains('show'))renderSyncBox();
+}
+function syncTap(){(syncCfg&&syncCfg.token)?syncNow(true):showPage('pg-data');}
+function fmtTime(ms){if(!ms)return '-';const d=new Date(ms);return d.getDate()+' '+THM[d.getMonth()]+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function renderSyncBox(){
+  const el=document.getElementById('syncBox');
+  if(syncCfg&&syncCfg.token){
+    el.innerHTML=`
+      <div style="font-weight:800;color:var(--green);margin-bottom:4px">🟢 เชื่อมต่อแล้ว</div>
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">แก้ไขอะไรจะส่งขึ้น cloud อัตโนมัติ (เข้ารหัสด้วย PIN ก่อนส่ง) · Sync ล่าสุด: ${fmtTime(syncCfg.lastSync)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p" style="width:auto;padding:9px 18px;font-size:13.5px" onclick="syncNow(true)">🔄 Sync ตอนนี้</button>
+        <button class="btn btn-g" style="padding:9px 18px;font-size:13.5px" onclick="disconnectSync()">เลิกเชื่อมต่อเครื่องนี้</button>
+      </div>`;
+  }else if(window.SYNC_TOKEN_ENC){
+    el.innerHTML=`
+      <div style="font-size:13px;line-height:1.6;margin-bottom:10px">เว็บนี้ฝังกุญแจ Sync ไว้แล้ว (เข้ารหัสด้วย PIN) — ใส่ PIN ตัวเดียวกับ Audit Tracker ครั้งเดียว เครื่องนี้จะ sync กับทุกเครื่องอัตโนมัติ</div>
+      <div style="display:flex;gap:8px">
+        <input id="syncPinOnly" inputmode="numeric" placeholder="PIN" autocomplete="off" style="flex:1;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px" onkeydown="if(event.key==='Enter')pinConnect()">
+        <button class="btn btn-p" style="width:auto;padding:9px 20px;font-size:13.5px" onclick="pinConnect()">🔗 เชื่อมต่อ</button>
+      </div>`;
+  }else{
+    el.innerHTML=`
+      <div style="font-size:13px;line-height:1.65;margin-bottom:12px">
+        ทำให้ทุกเครื่อง (คอม/มือถือ) เห็นข้อมูลชุดเดียวกัน ต้องใช้ <b>กุญแจ (token)</b> สร้างครั้งเดียวใช้ได้ทุกเครื่อง:<br>
+        1. เปิด <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:var(--blue);font-weight:700">github.com/settings/personal-access-tokens/new</a> (ล็อกอิน tpnaudit)<br>
+        2. Token name: <b>crm-sync</b> · Expiration: เลือก <b>Custom</b> ยาวสุด 1 ปี<br>
+        3. Repository access → <b>Only select repositories</b> → เลือก <b>audit-tracker-data</b><br>
+        4. Permissions → Repository permissions → <b>Contents</b> → <b>Read and write</b><br>
+        5. กด Generate token แล้ว copy (ขึ้นต้น <code>github_pat_</code>) มาวางด้านล่าง</div>
+      <div style="margin-bottom:8px"><label>Token (github_pat_...)</label><input id="syncToken" placeholder="github_pat_xxxx..." autocomplete="off" style="width:100%;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px"></div>
+      <div style="margin-bottom:12px"><label>PIN (สำหรับเข้ารหัสข้อมูล)</label><input id="syncPin" inputmode="numeric" placeholder="PIN" autocomplete="off" style="width:100%;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px"></div>
+      <button class="btn btn-p" onclick="connectSync()">🔗 เชื่อมต่อ</button>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Token กับ PIN ถูกเก็บไว้ในเครื่องนี้เท่านั้น ไม่ถูกอัพขึ้นเว็บ</div>`;
+  }
+}
+async function pinConnect(){
+  const pin=document.getElementById('syncPinOnly').value.trim();
+  if(!pin){toast('⚠️ ใส่ PIN ก่อน');return;}
+  toast('⏳ กำลังเชื่อมต่อ...');
+  const ok=await autoConnectSync(pin);
+  if(ok){renderSyncBox();toast('☁️ เชื่อม Sync แล้ว');}
+  else toast('⚠️ PIN ไม่ถูกต้อง');
+}
+async function connectSync(){
+  const token=document.getElementById('syncToken').value.trim();
+  const pin=document.getElementById('syncPin').value.trim();
+  if(!token||!pin){toast('⚠️ ใส่ Token และ PIN ให้ครบ');return;}
+  syncCfg={token,pin,salt:null,lastSync:null};
+  toast('⏳ กำลังทดสอบการเชื่อมต่อ...');
+  try{
+    const res=await fetch('https://api.github.com/repos/tpnaudit/audit-tracker-data',{headers:ghHdr()});
+    if(!res.ok)throw new Error('token ใช้ไม่ได้ (HTTP '+res.status+')');
+    saveSync();renderSyncBox();
+    await syncNow(true);
+  }catch(err){syncCfg=null;localStorage.removeItem(SYNC_KEY);toast('⚠️ เชื่อมต่อไม่สำเร็จ: '+err.message);}
+}
+function disconnectSync(){
+  if(!confirm('เลิก Sync เครื่องนี้? (ข้อมูลในเครื่องยังอยู่ และข้อมูลบน cloud ไม่ถูกลบ)'))return;
+  syncCfg=null;localStorage.removeItem(SYNC_KEY);setSyncUI('');renderSyncBox();toast('เลิกเชื่อมต่อแล้ว');
+}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&syncCfg&&syncCfg.token&&(!syncCfg.lastSync||Date.now()-syncCfg.lastSync>60000))syncNow(false);
+});
+
+/* ================= unlock (PIN → เชื่อม sync อัตโนมัติ) ================= */
+const SYNC_SKIP_KEY='auditCrmSyncSkip';
+async function autoConnectSync(pin){
+  if(syncCfg&&syncCfg.token)return true;
+  if(!window.SYNC_TOKEN_ENC||!pin)return false;
+  try{
+    const token=await decPayload(window.SYNC_TOKEN_ENC,pin);
+    syncCfg={token,pin,salt:null,lastSync:null};saveSync();
+    localStorage.removeItem(SYNC_SKIP_KEY);
+    setSyncUI('ok');syncNow(false);
+    return true;
+  }catch(e){return false;}
+}
+async function tryUnlock(){
+  const pin=document.getElementById('pinInput').value.trim();
+  const msg=document.getElementById('pinMsg');
+  if(!pin){msg.textContent='กรุณาใส่รหัส';return;}
+  if(!(window.crypto&&crypto.subtle)){msg.textContent='ต้องเปิดผ่าน https เท่านั้น';return;}
+  msg.textContent='⏳ กำลังเชื่อมต่อ...';msg.style.color='var(--muted)';
+  const ok=await autoConnectSync(pin);
+  if(ok){document.getElementById('unlock').style.display='none';toast('☁️ เชื่อม Sync แล้ว — กำลังดึงข้อมูลล่าสุด');}
+  else{msg.style.color='var(--red)';msg.textContent='รหัสไม่ถูกต้อง ลองใหม่อีกครั้ง';}
+}
+function skipUnlock(){
+  localStorage.setItem(SYNC_SKIP_KEY,'1');
+  document.getElementById('unlock').style.display='none';
+  toast('เปิด Sync ทีหลังได้ที่แท็บ ข้อมูล');
+}
+document.getElementById('pinInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+
+/* ================= init ================= */
+renderStageOpts('none');
+renderList();
+setSyncUI(syncCfg&&syncCfg.token?'ok':'');
+if(syncCfg&&syncCfg.token)syncNow(false);
+else if(window.SYNC_TOKEN_ENC&&!localStorage.getItem(SYNC_SKIP_KEY))document.getElementById('unlock').style.display='flex';
+</script>
+</body>
+</html>
