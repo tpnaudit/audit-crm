@@ -155,7 +155,10 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <section class="page show" id="pg-list">
   <div class="chips" id="stageChips"></div>
   <div class="fbar"><input type="search" id="fSearch" placeholder="🔍 ค้นหาชื่อ / บริษัท / remark"></div>
-  <div class="lsum" id="listSum"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 4px 10px">
+    <div class="lsum" id="listSum" style="margin:0"></div>
+    <button onclick="exportContactsExcel()" style="border:none;border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;background:var(--p2);color:#fff;white-space:nowrap">📤 Export Excel</button>
+  </div>
   <div id="listBox"></div>
 </section>
 
@@ -479,6 +482,28 @@ function exportBudExcel(){
   XLSX.utils.book_append_sheet(wb,ws,'Budget '+nextYearBE);
   XLSX.writeFile(wb,'Expected Budget '+nextYearBE+'.xlsx');
   toast('📤 Export แล้ว '+rs.length+' ราย (มีสูตร)');
+}
+
+/* export contact list — ตาม filter/ค้นหาที่เลือกอยู่ */
+function exportContactsExcel(){
+  if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
+  const rs=filtered();
+  if(!rs.length){toast('⚠️ ไม่มีคอนแทคตามที่กรอง');return;}
+  const hdr=['ลำดับ','ชื่อคอนแทค','บริษัท/สังกัด','เบอร์โทร','Line ID','Stage','Remark','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
+  const rows=rs.map((r,i)=>[i+1,r.name,r.org||'',r.phone||'',r.line||'',(STAGES[r.stage]||STAGES.none).lb,r.remark||'',+r.expQty||0,+r.expAvg||0,0]);
+  const totalRow=Array(hdr.length).fill('');totalRow[1]='รวม '+rs.length+' ราย';
+  const ws=XLSX.utils.aoa_to_sheet([hdr,...rows,totalRow]);
+  const lastRow=rows.length+1;
+  rows.forEach((_,i)=>{const n=i+2;
+    ws[XLSX.utils.encode_cell({r:i+1,c:9})]={t:'n',f:`H${n}*I${n}`};});
+  [7,9].forEach(c=>{const L=XLSX.utils.encode_col(c);
+    ws[XLSX.utils.encode_cell({r:lastRow,c})]={t:'n',f:`SUM(${L}2:${L}${lastRow})`};});
+  ws['!cols']=[{wch:6},{wch:30},{wch:22},{wch:14},{wch:16},{wch:26},{wch:30},{wch:13},{wch:14},{wch:13}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'รายชื่อคอนแทค');
+  const stTxt=stageFilter?' - '+STAGES[stageFilter].lb:'';
+  XLSX.writeFile(wb,'รายชื่อคอนแทค'+stTxt+'.xlsx');
+  toast('📤 Export แล้ว '+rs.length+' ราย');
 }
 
 /* ================= backup ================= */
