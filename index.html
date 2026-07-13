@@ -88,6 +88,8 @@ h2:first-child{margin-top:2px}
 .a-edit{background:#eceff3;color:#3f4f5c}.a-del{background:#fde8e8;color:#c81e1e}
 .a-mv{background:#fff;border:1.5px solid var(--line) !important;color:var(--muted);padding:6px 10px !important}
 .a-mv:disabled{opacity:.35;cursor:default}
+.mhead{font-size:13px;font-weight:800;color:var(--p);margin:16px 2px 8px}
+.mhead:first-child{margin-top:2px}
 .empty{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 18px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
 .empty .big{font-size:34px;margin-bottom:6px}
 
@@ -278,7 +280,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
-const APP_VER='1.4';
+const APP_VER='1.5';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -300,7 +302,11 @@ const STAGE_ORDER=['worked','added','none'];
 const CHANNELS={line:{lb:'LINE',ico:'💬'},fb:{lb:'Facebook',ico:'📘'},phone:{lb:'โทรศัพท์',ico:'📞'},email:{lb:'Email',ico:'✉️'},meet:{lb:'เจอหน้า/อื่นๆ',ico:'🤝'}};
 const SOURCES=['DBD Datawarehouse','Google Map','Facebook','Tiktok','Line','แนะนำต่อมา','คนรู้จัก'];
 const THM=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-function fmtD(s){if(!s)return'-';const[y,m,d]=s.split('-').map(Number);return d+' '+THM[m-1]+' '+String(y).slice(-2);}
+/* วันที่จาก date picker เป็น ค.ศ. แต่ข้อมูลเก่าบางส่วนเป็น พ.ศ. — normalize เป็น ค.ศ. ก่อนเทียบเสมอ */
+const normD=s=>{if(!s)return'';let[y,m,d]=s.split('-').map(Number);if(y>=2400)y-=543;return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');};
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* แสดงผลเป็น พ.ศ. เสมอ */
+function fmtD(s){if(!s)return'-';let[y,m,d]=s.split('-').map(Number);if(y<2400)y+=543;return d+' '+THM[m-1]+' '+String(y).slice(-2);}
 const nextYearBE=new Date().getFullYear()+543+1;
 const fmtB=n=>'฿'+Math.round(n).toLocaleString('th-TH');
 const fmtN=n=>n.toLocaleString('th-TH');
@@ -325,11 +331,11 @@ function showPage(id){
 let stageFilter='';
 document.getElementById('fSearch').addEventListener('input',renderList);
 function setStageFilter(s){stageFilter=stageFilter===s?'':s;renderList();}
-const isDue=r=>r.followUp&&r.followUp<=todayBE();
+const isDue=r=>r.followUp&&normD(r.followUp)<=todayISO();
 function filtered(){
   const q=document.getElementById('fSearch').value.trim().toLowerCase();
   return live().filter(r=>{
-    if(stageFilter==='due'){if(!isDue(r))return false;}
+    if(stageFilter==='due'){if(!r.followUp)return false;}
     else if(stageFilter&&r.stage!==stageFilter)return false;
     if(q&&![r.name,r.org,r.orgType,r.remark,r.line,r.fb,r.source].some(v=>(v||'').toLowerCase().includes(q)))return false;
     return true;
@@ -338,10 +344,11 @@ function filtered(){
 function renderList(){
   const all=live();
   const dueN=all.filter(isDue).length;
+  const fuN=all.filter(r=>r.followUp).length;
   document.getElementById('stageChips').innerHTML=
     `<button class="chip ${stageFilter===''?'on':''}" onclick="setStageFilter('')">ทั้งหมด ${fmtN(all.length)}</button>`+
     STAGE_ORDER.map(k=>`<button class="chip ${stageFilter===k?'on':''}" onclick="setStageFilter('${k}')">${STAGES[k].ico} ${STAGES[k].lb} ${fmtN(all.filter(r=>r.stage===k).length)}</button>`).join('')+
-    (dueN?`<button class="chip ${stageFilter==='due'?'on':''}" style="${stageFilter==='due'?'':'border-color:#f8b4b4;background:#fdf2f2;color:#c81e1e'}" onclick="setStageFilter('due')">⏰ ถึงคิวตาม ${fmtN(dueN)}</button>`:'');
+    (fuN?`<button class="chip ${stageFilter==='due'?'on':''}" style="${stageFilter==='due'||!dueN?'':'border-color:#f8b4b4;background:#fdf2f2;color:#c81e1e'}" onclick="setStageFilter('due')">${dueN?'⏰ ถึงคิวตาม '+fmtN(dueN):'📅 นัดตาม '+fmtN(fuN)}</button>`:'');
   const rs=filtered();
   const q=document.getElementById('fSearch').value.trim();
   const canMove=!stageFilter&&!q;
@@ -354,11 +361,22 @@ function renderList(){
     document.getElementById('listBox').innerHTML=`<div class="empty">ไม่พบคอนแทคตามที่ค้นหา</div>`;
     return;
   }
+  /* มุมมองตามนัด: เรียงตามวันที่นัด + คั่นหัวข้อรายเดือน */
+  if(stageFilter==='due')rs.sort((a,b)=>normD(a.followUp).localeCompare(normD(b.followUp)));
+  let lastMh='';
   document.getElementById('listBox').innerHTML=rs.map((r,i)=>{
     const st=STAGES[r.stage]||STAGES.none;
     const others=STAGE_ORDER.filter(k=>k!==r.stage);
     const seq=all.findIndex(x=>x.id===r.id)+1;
-    return `<div class="item">
+    let mhead='';
+    if(stageFilter==='due'){
+      const[y,m]=normD(r.followUp).split('-').map(Number);
+      const lb=THM[m-1]+' '+(y+543);
+      if(lb!==lastMh){lastMh=lb;
+        const cnt=rs.filter(x=>{const[yy,mm]=normD(x.followUp).split('-').map(Number);return yy===y&&mm===m;}).length;
+        mhead=`<div class="mhead">📅 ${lb} — นัดตาม ${fmtN(cnt)} ราย</div>`;}
+    }
+    return mhead+`<div class="item">
       <div class="top">
         <div class="seq">${seq}</div>
         <div style="flex:1;min-width:0">
@@ -395,7 +413,7 @@ function findRec(id){return records.find(r=>r.id===id);}
 function setStage(id,st){const r=findRec(id);if(!r)return;r.stage=st;r.updatedAt=Date.now();save();renderList();toast(STAGES[st].ico+' '+r.name+' → '+STAGES[st].lb);}
 function talkedToday(id){
   const r=findRec(id);if(!r)return;
-  r.lastContact=todayBE();
+  r.lastContact=todayISO();
   if(isDue(r))r.followUp='';   /* นัดที่ถึงคิวถือว่าตามแล้ว — นัดใหม่ตั้งได้ในฟอร์ม */
   r.updatedAt=Date.now();save();renderList();toast('✅ บันทึกคุยวันนี้: '+r.name);
 }
@@ -593,15 +611,14 @@ function exportContactsExcel(){
   ws['!cols']=[{wch:6},{wch:30},{wch:16},{wch:22},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'รายชื่อคอนแทค');
-  const stTxt=stageFilter?' - '+STAGES[stageFilter].lb:'';
+  const stTxt=stageFilter?' - '+(STAGES[stageFilter]?STAGES[stageFilter].lb:'ตามนัด'):'';
   XLSX.writeFile(wb,'รายชื่อคอนแทค'+stTxt+'.xlsx');
   toast('📤 Export แล้ว '+rs.length+' ราย');
 }
 
 /* ================= backup ================= */
-function todayBE(){const d=new Date();return (d.getFullYear()+543)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function download(name,blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
-function exportJSON(){download('audit-crm-backup-'+todayBE()+'.json',new Blob([JSON.stringify({version:1,records},null,1)],{type:'application/json'}));toast('🗄️ สำรองข้อมูลแล้ว');}
+function exportJSON(){download('audit-crm-backup-'+todayISO()+'.json',new Blob([JSON.stringify({version:1,records},null,1)],{type:'application/json'}));toast('🗄️ สำรองข้อมูลแล้ว');}
 document.getElementById('impJson').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
   const rd=new FileReader();
