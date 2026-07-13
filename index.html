@@ -278,6 +278,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
+const APP_VER='1.4';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -621,7 +622,8 @@ function resetAll(){
 function renderDataStat(){
   const all=live();
   document.getElementById('dataStat').innerHTML='ทั้งหมด '+fmtN(all.length)+' คอนแทค — '+
-    STAGE_ORDER.map(k=>STAGES[k].ico+' '+fmtN(all.filter(r=>r.stage===k).length)).join(' | ');
+    STAGE_ORDER.map(k=>STAGES[k].ico+' '+fmtN(all.filter(r=>r.stage===k).length)).join(' | ')+
+    ' · เวอร์ชันเว็บ v'+APP_VER;
   renderSyncBox();
 }
 
