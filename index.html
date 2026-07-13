@@ -53,7 +53,7 @@ h2:first-child{margin-top:2px}
 .kpi.hero .lb,.kpi.hero .sub{color:rgba(255,255,255,.82)}
 .kpi.hero .v{font-size:30px}
 @media(min-width:760px){.kpi.hero{grid-column:auto}}
-.kpi.gd .v{color:var(--green)} .kpi.bl .v{color:var(--blue)} .kpi.am .v{color:var(--amber)}
+.kpi.gd .v{color:var(--green)} .kpi.bl .v{color:var(--blue)} .kpi.am .v{color:var(--amber)} .kpi.rd .v{color:var(--red)}
 
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
 .chartbox{position:relative;height:240px}
@@ -185,6 +185,19 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <div id="budBox"></div>
 </section>
 
+<!-- ============ ACTUAL ============ -->
+<section class="page" id="pg-actual">
+  <h2 id="actTitle">📈 Actual — ผลจริงเทียบเป้า</h2>
+  <div class="kpis" id="actKpis"></div>
+
+  <h2>คาด vs จริง รายลูกค้า</h2>
+  <div class="card"><div class="chartbox"><canvas id="chAct"></canvas></div></div>
+
+  <h2 style="margin-top:16px">กรอกผลจริงรายลูกค้า</h2>
+  <div class="lsum" style="margin-top:0">จำนวนงบที่ได้จริง × ราคาเฉลี่ยที่ได้จริง — ระบบเทียบกับที่คาดไว้ในแท็บ Budget ให้เอง</div>
+  <div id="actBox"></div>
+</section>
+
 <!-- ============ FORM ============ -->
 <section class="page" id="pg-form">
   <h2 id="formTitle">เพิ่มคอนแทคใหม่</h2>
@@ -261,6 +274,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <nav>
   <button class="active" data-pg="pg-list"><span class="ico">👥</span>ลูกค้า</button>
   <button data-pg="pg-budget"><span class="ico">💰</span>Budget</button>
+  <button data-pg="pg-actual"><span class="ico">📈</span>Actual</button>
   <button data-pg="pg-form" onclick="resetForm()"><span class="ico">➕</span>เพิ่ม</button>
   <button data-pg="pg-data"><span class="ico">⚙️</span>ข้อมูล</button>
 </nav>
@@ -281,7 +295,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
-const APP_VER='1.6';
+const APP_VER='1.7';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -324,6 +338,7 @@ function showPage(id){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.pg===id));
   if(id==='pg-list')renderList();
   if(id==='pg-budget')renderBudget();
+  if(id==='pg-actual')renderActual();
   if(id==='pg-data')renderDataStat();
   window.scrollTo(0,0);
 }
@@ -618,6 +633,75 @@ function exportContactsExcel(){
   const stTxt=stageFilter?' - '+(STAGES[stageFilter]?STAGES[stageFilter].lb:'ตามนัด'):'';
   XLSX.writeFile(wb,'รายชื่อคอนแทค'+stTxt+'.xlsx');
   toast('📤 Export แล้ว '+rs.length+' ราย');
+}
+
+/* ================= actual vs budget ================= */
+const actRev=r=>(+r.actQty||0)*(+r.actAvg||0);
+let chAct=null;
+function aoBadge(r){
+  const e=rev(r),a=actRev(r);
+  if(!e&&!a)return'';
+  const d=a-e;
+  if(d>0)return `<span class="badge b-green">▲ Over +${fmtB(d)}</span>`;
+  if(d<0)return `<span class="badge b-red">▼ Under -${fmtB(-d)}</span>`;
+  return '<span class="badge b-gray">🎯 ตรงเป้า</span>';
+}
+function renderActKpis(){
+  const rs=live();
+  const expRev=rs.reduce((s,r)=>s+rev(r),0);
+  const aRev=rs.reduce((s,r)=>s+actRev(r),0);
+  const expQty=rs.reduce((s,r)=>s+(+r.expQty||0),0);
+  const aQty=rs.reduce((s,r)=>s+(+r.actQty||0),0);
+  const diff=aRev-expRev;
+  const pct=expRev?Math.round(aRev/expRev*100):0;
+  document.getElementById('actKpis').innerHTML=`
+    <div class="kpi hero"><div class="lb">รายได้จริงปี ${nextYearBE}</div><div class="v">${fmtB(aRev)}</div><div class="sub">เป้าที่คาดไว้ ${fmtB(expRev)}</div></div>
+    <div class="kpi ${diff>=0?'gd':'rd'}"><div class="lb">${diff>=0?'▲ Over เป้า':'▼ Under เป้า'}</div><div class="v">${(diff>=0?'+':'-')+fmtB(Math.abs(diff))}</div><div class="sub">ทำได้ ${pct}% ของเป้า</div></div>
+    <div class="kpi bl"><div class="lb">งบที่ได้จริง</div><div class="v">${fmtN(aQty)} งบ</div><div class="sub">คาดไว้ ${fmtN(expQty)} งบ</div></div>
+    <div class="kpi am"><div class="lb">เฉลี่ยจริง/งบ</div><div class="v">${fmtB(aQty?aRev/aQty:0)}</div><div class="sub">คาด ${fmtB(expQty?expRev/expQty:0)}/งบ</div></div>`;
+}
+function renderActChart(){
+  if(typeof Chart==='undefined')return;
+  const top=live().filter(r=>rev(r)>0||actRev(r)>0)
+    .sort((a,b)=>(rev(b)+actRev(b))-(rev(a)+actRev(a))).slice(0,10);
+  if(chAct)chAct.destroy();
+  chAct=new Chart(document.getElementById('chAct'),{
+    type:'bar',
+    data:{labels:top.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),
+      datasets:[
+        {label:'คาด',data:top.map(r=>rev(r)),backgroundColor:'#c3ddd6',borderRadius:5},
+        {label:'จริง',data:top.map(r=>actRev(r)),backgroundColor:'#0e8a74',borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Noto Sans Thai'}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtB(c.raw)}}},
+      scales:{x:{beginAtZero:true,ticks:{callback:v=>v>=1000?(v/1000)+'k':v}}}}});
+}
+function renderActual(){
+  document.getElementById('actTitle').textContent='📈 Actual ปี '+nextYearBE+' — ผลจริงเทียบเป้า';
+  const rs=live();
+  renderActKpis();renderActChart();
+  if(!rs.length){
+    document.getElementById('actBox').innerHTML=`<div class="empty"><div class="big">📈</div>ยังไม่มีคอนแทค — เพิ่มลูกค้าที่แท็บ <b>➕ เพิ่ม</b> และตั้งเป้าในแท็บ <b>💰 Budget</b> ก่อน<br>แล้วกลับมากรอกผลจริงที่นี่</div>`;
+    return;
+  }
+  document.getElementById('actBox').innerHTML=rs.map(r=>`<div class="brow">
+      <div class="bnm">${esc(r.name)} <span id="ao_${r.id}">${aoBadge(r)}</span></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:3px">เป้า: ${fmtN(+r.expQty||0)} งบ × ${fmtB(+r.expAvg||0)} = ${fmtB(rev(r))}</div>
+      <div class="grid">
+        <div><label>จำนวนงบ (จริง)</label><input type="number" inputmode="numeric" min="0" value="${+r.actQty||0}" onchange="setAct('${r.id}','actQty',this.value)"></div>
+        <div><label>เฉลี่ย บาท/งบ (จริง)</label><input type="number" inputmode="decimal" min="0" step="any" value="${+r.actAvg||0}" onchange="setAct('${r.id}','actAvg',this.value)"></div>
+        <div class="rev" id="arev_${r.id}"><small>รายได้จริง</small>${fmtB(actRev(r))}</div>
+      </div>
+    </div>`).join('');
+}
+function setAct(id,key,val){
+  const r=findRec(id);if(!r)return;
+  r[key]=Math.max(0,+val||0);r.updatedAt=Date.now();save();
+  const el=document.getElementById('arev_'+id);
+  if(el)el.innerHTML='<small>รายได้จริง</small>'+fmtB(actRev(r));
+  const ao=document.getElementById('ao_'+id);
+  if(ao)ao.innerHTML=aoBadge(r);
+  renderActKpis();renderActChart();
 }
 
 /* ================= backup ================= */
