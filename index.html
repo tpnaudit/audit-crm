@@ -197,10 +197,11 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
         <option>Freelance</option>
         <option>สำนักงานบัญชี</option>
         <option>สำนักงานสอบบัญชี</option>
+        <option>ผู้ประกอบการ</option>
       </select></div>
       <div><label>เบอร์โทร</label><input id="f_phone" inputmode="tel" placeholder="08x-xxx-xxxx"></div>
     </div>
-    <div class="frow one" id="orgNameRow"><div><label>ชื่อสำนักงาน / สังกัด</label><input id="f_org" placeholder="เช่น One Bizz"></div></div>
+    <div class="frow one" id="orgNameRow"><div><label id="orgNameLb">ชื่อสำนักงาน / บริษัท</label><input id="f_org" placeholder="เช่น One Bizz"></div></div>
     <div class="frow">
       <div><label>ชื่อไลน์ / Line ID</label><input id="f_line" placeholder="ชื่อที่โชว์ใน Line"></div>
       <div><label>ชื่อ Facebook</label><input id="f_fb" placeholder="ชื่อโปรไฟล์ FB"></div>
@@ -280,7 +281,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
-const APP_VER='1.5';
+const APP_VER='1.6';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -439,9 +440,12 @@ function renderStageOpts(sel){
       <span>${STAGES[k].ico} ${STAGES[k].lb}</span>
     </label>`).join('');
 }
-/* สังกัด: Freelance ซ่อนช่องชื่อสำนักงาน */
+/* สังกัด: Freelance ซ่อนช่องชื่อ / ประเภทอื่นโชว์พร้อมป้ายชื่อตามประเภท */
 function updOrgRow(){
-  document.getElementById('orgNameRow').style.display=F('f_orgType').value==='Freelance'?'none':'grid';
+  const t=F('f_orgType').value;
+  document.getElementById('orgNameRow').style.display=t==='Freelance'?'none':'grid';
+  document.getElementById('orgNameLb').textContent=
+    t==='ผู้ประกอบการ'?'ชื่อบริษัท':t.startsWith('สำนักงาน')?'ชื่อสำนักงาน':'ชื่อสำนักงาน / บริษัท';
 }
 /* dropdown ที่มา — ถ้าข้อมูลเก่ามีค่านอกลิสต์มาตรฐาน ให้โชว์เป็นตัวเลือกด้วยจะได้ไม่หาย */
 function fillSourceSel(cur){
