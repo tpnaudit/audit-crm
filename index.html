@@ -154,7 +154,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <!-- ============ CONTACTS ============ -->
 <section class="page show" id="pg-list">
   <div class="chips" id="stageChips"></div>
-  <div class="fbar"><input type="search" id="fSearch" placeholder="🔍 ค้นหาชื่อ / บริษัท / remark"></div>
+  <div class="fbar"><input type="search" id="fSearch" placeholder="🔍 ค้นหาชื่อ / บริษัท / ไลน์ / FB / remark"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 4px 10px">
     <div class="lsum" id="listSum" style="margin:0"></div>
     <button onclick="exportContactsExcel()" style="border:none;border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:700;background:var(--p2);color:#fff;white-space:nowrap">📤 Export Excel</button>
@@ -188,12 +188,33 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
       <div><label>บริษัท / สังกัด</label><input id="f_org" placeholder="บจ. / สนง.บัญชี"></div>
       <div><label>เบอร์โทร</label><input id="f_phone" inputmode="tel" placeholder="08x-xxx-xxxx"></div>
     </div>
-    <div class="frow one"><div><label>Line ID</label><input id="f_line" placeholder="@ หรือ id"></div></div>
+    <div class="frow">
+      <div><label>ชื่อไลน์ / Line ID</label><input id="f_line" placeholder="ชื่อที่โชว์ใน Line"></div>
+      <div><label>ชื่อ Facebook</label><input id="f_fb" placeholder="ชื่อโปรไฟล์ FB"></div>
+    </div>
+    <div class="frow">
+      <div><label>Email</label><input id="f_email" inputmode="email" placeholder="name@mail.com"></div>
+      <div><label>รู้จักผ่าน / ที่มา</label><input id="f_source" placeholder="เช่น เพื่อนแนะนำ, กลุ่ม FB"></div>
+    </div>
+    <div class="frow one"><div><label>ช่องทางหลักที่ติดต่อ</label><select id="f_channel">
+      <option value="">— ไม่ระบุ —</option>
+      <option value="line">💬 LINE</option>
+      <option value="fb">📘 Facebook</option>
+      <option value="phone">📞 โทรศัพท์</option>
+      <option value="email">✉️ Email</option>
+      <option value="meet">🤝 เจอหน้า / อื่นๆ</option>
+    </select></div></div>
 
     <div class="fsec">📶 Stage — ถึงขั้นไหนแล้ว</div>
     <div class="stgrid" id="stageOpts"></div>
 
     <div class="frow one"><div><label>Remark / โน้ต</label><textarea id="f_remark" rows="3" placeholder="เช่น รอตามอีกทีเดือนหน้า, ชอบให้ทักช่วงเย็น"></textarea></div></div>
+
+    <div class="fsec">⏰ การติดตาม</div>
+    <div class="frow">
+      <div><label>คุยล่าสุดเมื่อ</label><input id="f_lastContact" type="date"></div>
+      <div><label>นัดตามครั้งถัดไป</label><input id="f_followUp" type="date"></div>
+    </div>
 
     <div class="fsec">💰 Expected Budget ปีหน้า (แก้ทีหลังในแท็บ Budget ได้)</div>
     <div class="frow">
@@ -264,7 +285,9 @@ const STAGES={
   none:{lb:'ยังไม่ได้แอดไลน์',ico:'⏳',cls:'b-amber'},
 };
 const STAGE_ORDER=['worked','added','none'];
+const CHANNELS={line:{lb:'LINE',ico:'💬'},fb:{lb:'Facebook',ico:'📘'},phone:{lb:'โทรศัพท์',ico:'📞'},email:{lb:'Email',ico:'✉️'},meet:{lb:'เจอหน้า/อื่นๆ',ico:'🤝'}};
 const THM=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function fmtD(s){if(!s)return'-';const[y,m,d]=s.split('-').map(Number);return d+' '+THM[m-1]+' '+String(y).slice(-2);}
 const nextYearBE=new Date().getFullYear()+543+1;
 const fmtB=n=>'฿'+Math.round(n).toLocaleString('th-TH');
 const fmtN=n=>n.toLocaleString('th-TH');
@@ -287,19 +310,23 @@ function showPage(id){
 let stageFilter='';
 document.getElementById('fSearch').addEventListener('input',renderList);
 function setStageFilter(s){stageFilter=stageFilter===s?'':s;renderList();}
+const isDue=r=>r.followUp&&r.followUp<=todayBE();
 function filtered(){
   const q=document.getElementById('fSearch').value.trim().toLowerCase();
   return live().filter(r=>{
-    if(stageFilter&&r.stage!==stageFilter)return false;
-    if(q&&!((r.name||'').toLowerCase().includes(q)||(r.org||'').toLowerCase().includes(q)||(r.remark||'').toLowerCase().includes(q)))return false;
+    if(stageFilter==='due'){if(!isDue(r))return false;}
+    else if(stageFilter&&r.stage!==stageFilter)return false;
+    if(q&&![r.name,r.org,r.remark,r.line,r.fb,r.source].some(v=>(v||'').toLowerCase().includes(q)))return false;
     return true;
   });
 }
 function renderList(){
   const all=live();
+  const dueN=all.filter(isDue).length;
   document.getElementById('stageChips').innerHTML=
     `<button class="chip ${stageFilter===''?'on':''}" onclick="setStageFilter('')">ทั้งหมด ${fmtN(all.length)}</button>`+
-    STAGE_ORDER.map(k=>`<button class="chip ${stageFilter===k?'on':''}" onclick="setStageFilter('${k}')">${STAGES[k].ico} ${STAGES[k].lb} ${fmtN(all.filter(r=>r.stage===k).length)}</button>`).join('');
+    STAGE_ORDER.map(k=>`<button class="chip ${stageFilter===k?'on':''}" onclick="setStageFilter('${k}')">${STAGES[k].ico} ${STAGES[k].lb} ${fmtN(all.filter(r=>r.stage===k).length)}</button>`).join('')+
+    (dueN?`<button class="chip ${stageFilter==='due'?'on':''}" style="${stageFilter==='due'?'':'border-color:#f8b4b4;background:#fdf2f2;color:#c81e1e'}" onclick="setStageFilter('due')">⏰ ถึงคิวตาม ${fmtN(dueN)}</button>`:'');
   const rs=filtered();
   const q=document.getElementById('fSearch').value.trim();
   const canMove=!stageFilter&&!q;
@@ -326,11 +353,20 @@ function renderList(){
       </div>
       <div class="meta">
         <span class="badge ${st.cls}">${st.ico} ${st.lb}</span>
+        ${r.channel&&CHANNELS[r.channel]?`<span class="badge b-blue">⭐ ${CHANNELS[r.channel].ico} ${CHANNELS[r.channel].lb}</span>`:''}
+        ${isDue(r)?`<span class="badge b-red">⏰ ถึงคิวตาม ${fmtD(r.followUp)}</span>`:r.followUp?`<span class="badge b-gray">📅 นัดตาม ${fmtD(r.followUp)}</span>`:''}
         ${rev(r)>0?`<span class="badge b-gray">💰 ${fmtN(+r.expQty||0)} งบ · ${fmtB(rev(r))}</span>`:''}
       </div>
-      ${(r.phone||r.line)?`<div class="ct">${r.phone?`📞 <a href="tel:${esc(r.phone.replace(/[^0-9+]/g,''))}">${esc(r.phone)}</a>`:''}${r.phone&&r.line?' · ':''}${r.line?`💬 Line: ${esc(r.line)}`:''}</div>`:''}
+      ${(r.phone||r.line||r.fb||r.email)?`<div class="ct">${[
+        r.phone?`📞 <a href="tel:${esc(r.phone.replace(/[^0-9+]/g,''))}">${esc(r.phone)}</a>`:'',
+        r.line?`💬 ${esc(r.line)}`:'',
+        r.fb?`📘 ${esc(r.fb)}`:'',
+        r.email?`✉️ ${esc(r.email)}`:''
+      ].filter(Boolean).join(' · ')}</div>`:''}
+      ${(r.lastContact||r.source)?`<div class="ct">${[r.lastContact?'🗓️ คุยล่าสุด '+fmtD(r.lastContact):'',r.source?'ที่มา: '+esc(r.source):''].filter(Boolean).join(' · ')}</div>`:''}
       ${r.remark?`<div class="rmk">📝 ${esc(r.remark)}</div>`:''}
       <div class="acts">
+        <button class="a-st" style="background:#def7ec;color:#046c4e" onclick="talkedToday('${r.id}')">✅ คุยวันนี้</button>
         ${others.map(k=>`<button class="a-st" onclick="setStage('${r.id}','${k}')">→ ${STAGES[k].ico} ${STAGES[k].lb}</button>`).join('')}
         <button class="a-edit" onclick="editRec('${r.id}')">✏️ แก้ไข</button>
         ${canMove?`<button class="a-mv" onclick="moveRec('${r.id}',-1)" ${i===0?'disabled':''}>↑</button>
@@ -342,6 +378,12 @@ function renderList(){
 }
 function findRec(id){return records.find(r=>r.id===id);}
 function setStage(id,st){const r=findRec(id);if(!r)return;r.stage=st;r.updatedAt=Date.now();save();renderList();toast(STAGES[st].ico+' '+r.name+' → '+STAGES[st].lb);}
+function talkedToday(id){
+  const r=findRec(id);if(!r)return;
+  r.lastContact=todayBE();
+  if(isDue(r))r.followUp='';   /* นัดที่ถึงคิวถือว่าตามแล้ว — นัดใหม่ตั้งได้ในฟอร์ม */
+  r.updatedAt=Date.now();save();renderList();toast('✅ บันทึกคุยวันนี้: '+r.name);
+}
 function moveRec(id,dir){
   const all=live();
   const i=all.findIndex(r=>r.id===id);
@@ -366,7 +408,8 @@ function renderStageOpts(sel){
 }
 function resetForm(){
   F('f_id').value='';document.getElementById('formTitle').textContent='เพิ่มคอนแทคใหม่';
-  ['f_name','f_org','f_phone','f_line','f_remark'].forEach(id=>F(id).value='');
+  ['f_name','f_org','f_phone','f_line','f_fb','f_email','f_source','f_remark','f_lastContact','f_followUp'].forEach(id=>F(id).value='');
+  F('f_channel').value='';
   F('f_expQty').value=0;F('f_expAvg').value=0;
   renderStageOpts('none');
 }
@@ -375,7 +418,10 @@ function editRec(id){
   resetForm();
   document.getElementById('formTitle').textContent='แก้ไข: '+r.name;
   F('f_id').value=r.id;F('f_name').value=r.name;F('f_org').value=r.org||'';
-  F('f_phone').value=r.phone||'';F('f_line').value=r.line||'';F('f_remark').value=r.remark||'';
+  F('f_phone').value=r.phone||'';F('f_line').value=r.line||'';F('f_fb').value=r.fb||'';
+  F('f_email').value=r.email||'';F('f_source').value=r.source||'';F('f_channel').value=r.channel||'';
+  F('f_lastContact').value=r.lastContact||'';F('f_followUp').value=r.followUp||'';
+  F('f_remark').value=r.remark||'';
   F('f_expQty').value=r.expQty||0;F('f_expAvg').value=r.expAvg||0;
   renderStageOpts(r.stage||'none');
   showPage('pg-form');
@@ -388,6 +434,8 @@ function saveForm(){
   const stEl=document.querySelector('input[name=f_stage]:checked');
   Object.assign(rec,{
     name,org:F('f_org').value.trim(),phone:F('f_phone').value.trim(),line:F('f_line').value.trim(),
+    fb:F('f_fb').value.trim(),email:F('f_email').value.trim(),source:F('f_source').value.trim(),
+    channel:F('f_channel').value,lastContact:F('f_lastContact').value,followUp:F('f_followUp').value,
     stage:stEl?stEl.value:'none',remark:F('f_remark').value.trim(),
     expQty:+F('f_expQty').value||0,expAvg:+F('f_expAvg').value||0,
     updatedAt:Date.now(),
@@ -489,16 +537,18 @@ function exportContactsExcel(){
   if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
   const rs=filtered();
   if(!rs.length){toast('⚠️ ไม่มีคอนแทคตามที่กรอง');return;}
-  const hdr=['ลำดับ','ชื่อคอนแทค','บริษัท/สังกัด','เบอร์โทร','Line ID','Stage','Remark','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
-  const rows=rs.map((r,i)=>[i+1,r.name,r.org||'',r.phone||'',r.line||'',(STAGES[r.stage]||STAGES.none).lb,r.remark||'',+r.expQty||0,+r.expAvg||0,0]);
+  const hdr=['ลำดับ','ชื่อคอนแทค','บริษัท/สังกัด','เบอร์โทร','ชื่อไลน์','Facebook','Email','ช่องทางหลัก','ที่มา','Stage','Remark','คุยล่าสุด','นัดตามถัดไป','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
+  const rows=rs.map((r,i)=>[i+1,r.name,r.org||'',r.phone||'',r.line||'',r.fb||'',r.email||'',
+    r.channel&&CHANNELS[r.channel]?CHANNELS[r.channel].lb:'',r.source||'',(STAGES[r.stage]||STAGES.none).lb,r.remark||'',
+    r.lastContact?fmtD(r.lastContact):'',r.followUp?fmtD(r.followUp):'',+r.expQty||0,+r.expAvg||0,0]);
   const totalRow=Array(hdr.length).fill('');totalRow[1]='รวม '+rs.length+' ราย';
   const ws=XLSX.utils.aoa_to_sheet([hdr,...rows,totalRow]);
   const lastRow=rows.length+1;
   rows.forEach((_,i)=>{const n=i+2;
-    ws[XLSX.utils.encode_cell({r:i+1,c:9})]={t:'n',f:`H${n}*I${n}`};});
-  [7,9].forEach(c=>{const L=XLSX.utils.encode_col(c);
+    ws[XLSX.utils.encode_cell({r:i+1,c:15})]={t:'n',f:`N${n}*O${n}`};});
+  [13,15].forEach(c=>{const L=XLSX.utils.encode_col(c);
     ws[XLSX.utils.encode_cell({r:lastRow,c})]={t:'n',f:`SUM(${L}2:${L}${lastRow})`};});
-  ws['!cols']=[{wch:6},{wch:30},{wch:22},{wch:14},{wch:16},{wch:26},{wch:30},{wch:13},{wch:14},{wch:13}];
+  ws['!cols']=[{wch:6},{wch:30},{wch:22},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'รายชื่อคอนแทค');
   const stTxt=stageFilter?' - '+STAGES[stageFilter].lb:'';
