@@ -190,9 +190,15 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
     <input type="hidden" id="f_id">
     <div class="frow one"><div><label>ชื่อคอนแทค / ลูกค้า *</label><input id="f_name" placeholder="เช่น พี่หนึ่ง สำนักงานบัญชี A"></div></div>
     <div class="frow">
-      <div><label>บริษัท / สังกัด</label><input id="f_org" placeholder="บจ. / สนง.บัญชี"></div>
+      <div><label>สังกัด</label><select id="f_orgType" onchange="updOrgRow()">
+        <option value="">— ไม่ระบุ —</option>
+        <option>Freelance</option>
+        <option>สำนักงานบัญชี</option>
+        <option>สำนักงานสอบบัญชี</option>
+      </select></div>
       <div><label>เบอร์โทร</label><input id="f_phone" inputmode="tel" placeholder="08x-xxx-xxxx"></div>
     </div>
+    <div class="frow one" id="orgNameRow"><div><label>ชื่อสำนักงาน / สังกัด</label><input id="f_org" placeholder="เช่น One Bizz"></div></div>
     <div class="frow">
       <div><label>ชื่อไลน์ / Line ID</label><input id="f_line" placeholder="ชื่อที่โชว์ใน Line"></div>
       <div><label>ชื่อ Facebook</label><input id="f_fb" placeholder="ชื่อโปรไฟล์ FB"></div>
@@ -299,6 +305,8 @@ const fmtB=n=>'฿'+Math.round(n).toLocaleString('th-TH');
 const fmtN=n=>n.toLocaleString('th-TH');
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 const rev=r=>(+r.expQty||0)*(+r.expAvg||0);
+/* สังกัด: Freelance ไม่มีชื่อสำนักงาน / สนง.มีชื่อ / ข้อมูลเก่ามีแต่ org เดิม */
+const orgLabel=r=>r.orgType==='Freelance'?'🧑‍💻 Freelance':[r.orgType,r.org].filter(Boolean).join(' · ');
 
 /* ================= toast / nav ================= */
 let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
@@ -322,7 +330,7 @@ function filtered(){
   return live().filter(r=>{
     if(stageFilter==='due'){if(!isDue(r))return false;}
     else if(stageFilter&&r.stage!==stageFilter)return false;
-    if(q&&![r.name,r.org,r.remark,r.line,r.fb,r.source].some(v=>(v||'').toLowerCase().includes(q)))return false;
+    if(q&&![r.name,r.org,r.orgType,r.remark,r.line,r.fb,r.source].some(v=>(v||'').toLowerCase().includes(q)))return false;
     return true;
   });
 }
@@ -354,7 +362,7 @@ function renderList(){
         <div class="seq">${seq}</div>
         <div style="flex:1;min-width:0">
           <div class="nm">${esc(r.name)}</div>
-          ${r.org?`<div class="org">${esc(r.org)}</div>`:''}
+          ${orgLabel(r)?`<div class="org">${esc(orgLabel(r))}</div>`:''}
         </div>
       </div>
       <div class="meta">
@@ -412,6 +420,10 @@ function renderStageOpts(sel){
       <span>${STAGES[k].ico} ${STAGES[k].lb}</span>
     </label>`).join('');
 }
+/* สังกัด: Freelance ซ่อนช่องชื่อสำนักงาน */
+function updOrgRow(){
+  document.getElementById('orgNameRow').style.display=F('f_orgType').value==='Freelance'?'none':'grid';
+}
 /* dropdown ที่มา — ถ้าข้อมูลเก่ามีค่านอกลิสต์มาตรฐาน ให้โชว์เป็นตัวเลือกด้วยจะได้ไม่หาย */
 function fillSourceSel(cur){
   const vals=[...SOURCES];
@@ -421,7 +433,7 @@ function fillSourceSel(cur){
 function resetForm(){
   F('f_id').value='';document.getElementById('formTitle').textContent='เพิ่มคอนแทคใหม่';
   ['f_name','f_org','f_phone','f_line','f_fb','f_email','f_remark','f_lastContact','f_followUp'].forEach(id=>F(id).value='');
-  F('f_channel').value='';fillSourceSel('');
+  F('f_channel').value='';fillSourceSel('');F('f_orgType').value='';updOrgRow();
   F('f_expQty').value=0;F('f_expAvg').value=0;
   renderStageOpts('none');
 }
@@ -430,6 +442,7 @@ function editRec(id){
   resetForm();
   document.getElementById('formTitle').textContent='แก้ไข: '+r.name;
   F('f_id').value=r.id;F('f_name').value=r.name;F('f_org').value=r.org||'';
+  F('f_orgType').value=r.orgType||'';updOrgRow();
   F('f_phone').value=r.phone||'';F('f_line').value=r.line||'';F('f_fb').value=r.fb||'';
   F('f_email').value=r.email||'';fillSourceSel(r.source||'');F('f_channel').value=r.channel||'';
   F('f_lastContact').value=r.lastContact||'';F('f_followUp').value=r.followUp||'';
@@ -444,8 +457,10 @@ function saveForm(){
   const id=F('f_id').value;
   const rec=id?findRec(id):{id:'c'+Date.now()+Math.random().toString(36).slice(2,6),order:Math.max(0,...records.map(r=>r.order||0))+1};
   const stEl=document.querySelector('input[name=f_stage]:checked');
+  const orgType=F('f_orgType').value;
   Object.assign(rec,{
-    name,org:F('f_org').value.trim(),phone:F('f_phone').value.trim(),line:F('f_line').value.trim(),
+    name,orgType,org:orgType==='Freelance'?'':F('f_org').value.trim(),
+    phone:F('f_phone').value.trim(),line:F('f_line').value.trim(),
     fb:F('f_fb').value.trim(),email:F('f_email').value.trim(),source:F('f_source').value.trim(),
     channel:F('f_channel').value,lastContact:F('f_lastContact').value,followUp:F('f_followUp').value,
     stage:stEl?stEl.value:'none',remark:F('f_remark').value.trim(),
@@ -563,18 +578,18 @@ function exportContactsExcel(){
   if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
   const rs=filtered();
   if(!rs.length){toast('⚠️ ไม่มีคอนแทคตามที่กรอง');return;}
-  const hdr=['ลำดับ','ชื่อคอนแทค','บริษัท/สังกัด','เบอร์โทร','ชื่อไลน์','Facebook','Email','ช่องทางหลัก','ที่มา','Stage','Remark','คุยล่าสุด','นัดตามถัดไป','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
-  const rows=rs.map((r,i)=>[i+1,r.name,r.org||'',r.phone||'',r.line||'',r.fb||'',r.email||'',
+  const hdr=['ลำดับ','ชื่อคอนแทค','สังกัด','ชื่อสำนักงาน','เบอร์โทร','ชื่อไลน์','Facebook','Email','ช่องทางหลัก','ที่มา','Stage','Remark','คุยล่าสุด','นัดตามถัดไป','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
+  const rows=rs.map((r,i)=>[i+1,r.name,r.orgType||'',r.org||'',r.phone||'',r.line||'',r.fb||'',r.email||'',
     r.channel&&CHANNELS[r.channel]?CHANNELS[r.channel].lb:'',r.source||'',(STAGES[r.stage]||STAGES.none).lb,r.remark||'',
     r.lastContact?fmtD(r.lastContact):'',r.followUp?fmtD(r.followUp):'',+r.expQty||0,+r.expAvg||0,0]);
   const totalRow=Array(hdr.length).fill('');totalRow[1]='รวม '+rs.length+' ราย';
   const ws=XLSX.utils.aoa_to_sheet([hdr,...rows,totalRow]);
   const lastRow=rows.length+1;
   rows.forEach((_,i)=>{const n=i+2;
-    ws[XLSX.utils.encode_cell({r:i+1,c:15})]={t:'n',f:`N${n}*O${n}`};});
-  [13,15].forEach(c=>{const L=XLSX.utils.encode_col(c);
+    ws[XLSX.utils.encode_cell({r:i+1,c:16})]={t:'n',f:`O${n}*P${n}`};});
+  [14,16].forEach(c=>{const L=XLSX.utils.encode_col(c);
     ws[XLSX.utils.encode_cell({r:lastRow,c})]={t:'n',f:`SUM(${L}2:${L}${lastRow})`};});
-  ws['!cols']=[{wch:6},{wch:30},{wch:22},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
+  ws['!cols']=[{wch:6},{wch:30},{wch:16},{wch:22},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'รายชื่อคอนแทค');
   const stTxt=stageFilter?' - '+STAGES[stageFilter].lb:'';
