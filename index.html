@@ -203,7 +203,8 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <h2 id="formTitle">เพิ่มคอนแทคใหม่</h2>
   <div class="frm">
     <input type="hidden" id="f_id">
-    <div class="frow one"><div><label>ชื่อคอนแทค / ลูกค้า *</label><input id="f_name" placeholder="เช่น พี่หนึ่ง สำนักงานบัญชี A"></div></div>
+    <div class="frow one"><div><label>ชื่อคอนแทค / ลูกค้า *</label><input id="f_name" placeholder="เช่น พี่หนึ่ง สำนักงานบัญชี A">
+      <div id="dupHint" style="display:none;font-size:12px;font-weight:600;color:var(--red);margin-top:4px"></div></div></div>
     <div class="frow">
       <div><label>สังกัด</label><select id="f_orgType" onchange="updOrgRow()">
         <option value="">— ไม่ระบุ —</option>
@@ -295,7 +296,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
-const APP_VER='1.7';
+const APP_VER='1.8';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -472,6 +473,7 @@ function resetForm(){
   F('f_id').value='';document.getElementById('formTitle').textContent='เพิ่มคอนแทคใหม่';
   ['f_name','f_org','f_phone','f_line','f_fb','f_email','f_remark','f_lastContact','f_followUp'].forEach(id=>F(id).value='');
   F('f_channel').value='';fillSourceSel('');F('f_orgType').value='';updOrgRow();
+  document.getElementById('dupHint').style.display='none';
   F('f_expQty').value=0;F('f_expAvg').value=0;
   renderStageOpts('none');
 }
@@ -489,10 +491,33 @@ function editRec(id){
   renderStageOpts(r.stage||'none');
   showPage('pg-form');
 }
+/* ================= duplicate check ================= */
+const normName=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,'');
+const normPhone=s=>String(s||'').replace(/[^0-9]/g,'');
+function findDup(name,phone,line,excludeId){
+  const nn=normName(name),np=normPhone(phone),nl=normName(line);
+  for(const r of live()){
+    if(r.id===excludeId)continue;
+    if(nn&&normName(r.name)===nn)return{r,why:'ชื่อซ้ำ'};
+    if(np&&np.length>=9&&normPhone(r.phone)===np)return{r,why:'เบอร์โทรซ้ำ'};
+    if(nl&&normName(r.line)===nl)return{r,why:'ชื่อไลน์ซ้ำ'};
+  }
+  return null;
+}
+function updDupHint(){
+  const el=document.getElementById('dupHint');
+  const dup=findDup(F('f_name').value,F('f_phone').value,F('f_line').value,F('f_id').value||null);
+  if(dup){el.style.display='block';el.textContent='⚠️ อาจซ้ำกับ "'+dup.r.name+'" ('+dup.why+')';}
+  else el.style.display='none';
+}
+['f_name','f_phone','f_line'].forEach(id=>document.getElementById(id).addEventListener('input',updDupHint));
+
 function saveForm(){
   const name=F('f_name').value.trim();
   if(!name){toast('⚠️ กรุณาใส่ชื่อคอนแทค');F('f_name').focus();return;}
   const id=F('f_id').value;
+  const dup=findDup(name,F('f_phone').value,F('f_line').value,id||null);
+  if(dup&&!confirm('⚠️ อาจซ้ำกับ "'+dup.r.name+'" ('+dup.why+')\n\nกด OK เพื่อบันทึกซ้ำ (คนละคนจริงๆ)\nกด Cancel เพื่อกลับไปแก้ไข'))return;
   const rec=id?findRec(id):{id:'c'+Date.now()+Math.random().toString(36).slice(2,6),order:Math.max(0,...records.map(r=>r.order||0))+1};
   const stEl=document.querySelector('input[name=f_stage]:checked');
   const orgType=F('f_orgType').value;
