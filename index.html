@@ -688,8 +688,17 @@ function actualOf(name){
   return ts?{count:ts.count,total:ts.total}:{count:0,total:0};
 }
 function trackerYearsAvail(){return [...new Set(trackerData.records.map(r=>r.year))].sort((a,b)=>b-a);}
-function growBadge(r){
-  const e=rev(r),a=actualOf(r.name).total;
+const escJs=s=>String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+/* รวมคอนแทคใน CRM + คนที่มีงานจริงปีฐานใน tracker แต่ยังไม่อยู่ใน CRM */
+function actualRows(){
+  const crmNames=new Set(live().map(r=>String(r.name||'').trim()));
+  const rows=live().map(r=>({name:r.name,exp:rev(r),expQty:+r.expQty||0,expAvg:+r.expAvg||0,act:actualOf(r.name),inCrm:true}));
+  [...new Set(trackerData.records.filter(r=>r.year===actualYear&&r.contact).map(r=>String(r.contact).trim()))]
+    .forEach(n=>{if(n&&!crmNames.has(n)){const a=actualOf(n);if(a.count>0)rows.push({name:n,exp:0,expQty:0,expAvg:0,act:a,inCrm:false});}});
+  return rows;
+}
+function addFromTracker(name){resetForm();F('f_name').value=name;updDupHint();updTrkPreview();showPage('pg-form');toast('ดึงชื่อ "'+name+'" มาแล้ว — ตั้งเป้าปีหน้าได้เลย');}
+function growBadge(e,a){
   if(!e&&!a)return'';
   const d=e-a; // คาดปีหน้า − จริงปีก่อน
   if(d>0)return `<span class="badge b-green">▲ โต +${fmtB(d)}</span>`;
@@ -707,11 +716,11 @@ function renderActYearBar(){
     <span style="font-size:13px;color:var(--muted)">→ เทียบเป้าปีหน้า</span>`;
 }
 function renderActKpis(){
-  const rs=live();
-  const expRev=rs.reduce((s,r)=>s+rev(r),0);
-  const aRev=rs.reduce((s,r)=>s+actualOf(r.name).total,0);
-  const expQty=rs.reduce((s,r)=>s+(+r.expQty||0),0);
-  const aQty=rs.reduce((s,r)=>s+actualOf(r.name).count,0);
+  const rs=actualRows();
+  const expRev=rs.reduce((s,r)=>s+r.exp,0);
+  const aRev=rs.reduce((s,r)=>s+r.act.total,0);
+  const expQty=rs.reduce((s,r)=>s+r.expQty,0);
+  const aQty=rs.reduce((s,r)=>s+r.act.count,0);
   const diff=expRev-aRev;
   const pct=aRev?Math.round((expRev-aRev)/aRev*100):0;
   document.getElementById('actKpis').innerHTML=`
@@ -722,7 +731,7 @@ function renderActKpis(){
 }
 function renderActChart(){
   if(typeof Chart==='undefined')return;
-  const top=live().map(r=>({name:r.name,exp:rev(r),act:actualOf(r.name).total}))
+  const top=actualRows().map(r=>({name:r.name,exp:r.exp,act:r.act.total}))
     .filter(r=>r.exp>0||r.act>0).sort((a,b)=>(b.exp+b.act)-(a.exp+a.act)).slice(0,10);
   if(chAct)chAct.destroy();
   chAct=new Chart(document.getElementById('chAct'),{
@@ -746,27 +755,29 @@ function renderActual(){
     return;
   }
   renderActKpis();renderActChart();
-  if(!rs.length){
+  const rows=actualRows();
+  if(!rows.length){
     document.getElementById('actBox').innerHTML=`<div class="empty"><div class="big">📈</div>ยังไม่มีคอนแทค — เพิ่มลูกค้าที่แท็บ <b>➕ เพิ่ม</b> และตั้งเป้าในแท็บ <b>💰 Budget</b> ก่อน</div>`;
     return;
   }
-  /* เรียงตามมูลค่ารวม (จริง+คาด) มาก→น้อย */
-  const sorted=[...rs].sort((a,b)=>(rev(b)+actualOf(b.name).total)-(rev(a)+actualOf(a.name).total));
-  document.getElementById('actBox').innerHTML=sorted.map(r=>{
-    const a=actualOf(r.name);
-    return `<div class="brow">
-      <div class="bnm">${esc(r.name)} ${growBadge(r)}</div>
+  const newN=rows.filter(r=>!r.inCrm).length;
+  document.getElementById('actBox').innerHTML=
+    (newN?`<div class="lsum" style="color:#8e4b10;background:#fdf6b2;border-radius:9px;padding:8px 11px;margin-bottom:10px">🆕 มี ${fmtN(newN)} รายที่เคยส่งงานปี ${actualYear} แต่ยังไม่อยู่ใน CRM — กดปุ่มเพิ่มเข้าลิสต์เพื่อตามต่อ</div>`:'')+
+    [...rows].sort((a,b)=>(b.exp+b.act.total)-(a.exp+a.act.total)).map(r=>{
+    const a=r.act;
+    return `<div class="brow"${r.inCrm?'':' style="border:1.5px dashed #f0c674;background:#fffdf5"'}>
+      <div class="bnm">${esc(r.name)} ${r.inCrm?growBadge(r.exp,a.total):'<span class="badge b-amber">🆕 ยังไม่อยู่ใน CRM</span>'}</div>
       <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
         <div style="background:#eef4f9;border-radius:10px;padding:9px 11px">
           <div style="font-size:11px;color:var(--muted);font-weight:600">จริงปี ${actualYear||'-'}</div>
           <div style="font-weight:800;font-size:15px;color:#155a85">${fmtB(a.total)}</div>
           <div style="font-size:11.5px;color:var(--muted)">${fmtN(a.count)} งบ${a.count?' · เฉลี่ย '+fmtB(a.total/a.count):''}</div>
         </div>
-        <div style="background:#eef9f7;border-radius:10px;padding:9px 11px">
+        ${r.inCrm?`<div style="background:#eef9f7;border-radius:10px;padding:9px 11px">
           <div style="font-size:11px;color:var(--muted);font-weight:600">คาดปี ${nextYearBE}</div>
-          <div style="font-weight:800;font-size:15px;color:#046c4e">${fmtB(rev(r))}</div>
-          <div style="font-size:11.5px;color:var(--muted)">${fmtN(+r.expQty||0)} งบ${(+r.expQty)?' · เฉลี่ย '+fmtB(+r.expAvg||0):''}</div>
-        </div>
+          <div style="font-weight:800;font-size:15px;color:#046c4e">${fmtB(r.exp)}</div>
+          <div style="font-size:11.5px;color:var(--muted)">${fmtN(r.expQty)} งบ${r.expQty?' · เฉลี่ย '+fmtB(r.expAvg):''}</div>
+        </div>`:`<button onclick="addFromTracker('${escJs(r.name)}')" style="border:1.5px dashed var(--p2);background:#fff;border-radius:10px;padding:9px 11px;font-weight:700;color:var(--p2);font-size:13px;cursor:pointer">➕ เพิ่มเข้า CRM<br><span style="font-size:11px;font-weight:400">+ ตั้งเป้าปีหน้า</span></button>`}
       </div>
     </div>`;}).join('');
 }
