@@ -103,6 +103,19 @@ h2:first-child{margin-top:2px}
 .brow .rev{font-weight:800;font-size:15px;color:var(--p);text-align:right;padding:8px 2px}
 .brow .rev small{display:block;font-weight:700;font-size:11px;color:var(--muted)}
 
+/* ===== reserve (จองชื่อ) ===== */
+.resHead{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:13px}
+.resBadge{font-size:13px;font-weight:800;letter-spacing:.2px}
+.resGreet{font-size:14px;line-height:1.55;margin-top:8px;font-weight:600}
+.resRef{font-size:11.5px;opacity:.82;margin-top:7px}
+.resgrp{font-weight:800;font-size:13.5px;color:var(--p);margin:15px 2px 7px;display:flex;align-items:center;gap:6px}
+.resrow{display:flex;align-items:center;gap:11px;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:11px;margin-bottom:7px}
+.resrow .resn{flex:0 0 26px;height:26px;border-radius:50%;background:#e6f4f0;color:var(--p);font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center}
+.resc{font-weight:800;font-size:14px;line-height:1.3}
+.rest{font-size:11.5px;color:var(--muted);margin-top:1px}
+.resf{font-weight:800;font-size:13px;color:var(--p2);white-space:nowrap;text-align:right}
+.resSum{margin-top:13px;background:#e6f4f0;color:var(--p);font-weight:800;font-size:13.5px;text-align:center;border-radius:11px;padding:11px}
+
 /* ===== form ===== */
 .frm{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
@@ -199,6 +212,14 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <div id="actBox"></div>
 </section>
 
+<!-- ============ RESERVE (จองชื่อปีหน้า) ============ -->
+<section class="page" id="pg-reserve">
+  <h2>📋 จองชื่อผู้สอบบัญชี ปีหน้า</h2>
+  <div class="lsum" style="margin-top:0">ดึงรายชื่อกิจการจากงบปีล่าสุดใน Audit Tracker — เลือกคน แล้วแคปหน้าจอส่งให้ลูกค้ายืนยันต่อได้เลย</div>
+  <div id="resBar" style="margin-bottom:12px"></div>
+  <div id="reserveCard"></div>
+</section>
+
 <!-- ============ FORM ============ -->
 <section class="page" id="pg-form">
   <h2 id="formTitle">เพิ่มคอนแทคใหม่</h2>
@@ -280,6 +301,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <button class="active" data-pg="pg-list"><span class="ico">👥</span>ลูกค้า</button>
   <button data-pg="pg-budget"><span class="ico">💰</span>Budget</button>
   <button data-pg="pg-actual"><span class="ico">📈</span>Actual</button>
+  <button data-pg="pg-reserve"><span class="ico">📋</span>จองชื่อ</button>
   <button data-pg="pg-form" onclick="resetForm()"><span class="ico">➕</span>เพิ่ม</button>
   <button data-pg="pg-data"><span class="ico">⚙️</span>ข้อมูล</button>
 </nav>
@@ -344,6 +366,7 @@ function showPage(id){
   if(id==='pg-list')renderList();
   if(id==='pg-budget')renderBudget();
   if(id==='pg-actual')renderActual();
+  if(id==='pg-reserve')renderReserve();
   if(id==='pg-data')renderDataStat();
   window.scrollTo(0,0);
 }
@@ -698,6 +721,81 @@ function actualRows(){
   return rows;
 }
 function addFromTracker(name){resetForm();F('f_name').value=name;updDupHint();updTrkPreview();showPage('pg-form');toast('ดึงชื่อ "'+name+'" มาแล้ว — ตั้งเป้าปีหน้าได้เลย');}
+
+/* ========== จองชื่อผู้สอบบัญชีปีหน้า (ดึงกิจการจากงบปีล่าสุด) ========== */
+let reserveYear=null,reserveContact='__all__';
+function reserveList(){
+  let recs=trackerData.records.filter(r=>r.year===reserveYear&&r.company);
+  if(reserveContact!=='__all__')recs=recs.filter(r=>(r.contact||'').trim()===reserveContact);
+  const seen=new Set();
+  recs=recs.filter(r=>{const k=(r.contact||'')+'|'+r.company;if(seen.has(k))return false;seen.add(k);return true;});
+  return recs.sort((a,b)=>String(a.company).localeCompare(String(b.company),'th'));
+}
+function reserveGreet(nextY){
+  return reserveContact==='__all__'
+    ?'รบกวนยืนยันรายชื่อกิจการด้านล่าง ว่าให้ดำเนินการตรวจสอบบัญชีต่อในปี '+nextY+' ไหมครับ 🙏'
+    :'สวัสดีครับ '+reserveContact+' 🙏 รบกวนยืนยันรายชื่อกิจการด้านล่าง ว่าให้ผมดำเนินการตรวจสอบบัญชีต่อในปี '+nextY+' ไหมครับ';
+}
+function renderReserve(){
+  const bar=document.getElementById('resBar'),card=document.getElementById('reserveCard');
+  if(!trackerData.loaded){
+    bar.innerHTML='';
+    card.innerHTML='<div class="empty"><div class="big">📋</div>ต้องเชื่อม Sync กับ Audit Tracker ก่อน จึงจะดึงรายชื่อกิจการจากงบปีล่าสุดได้<br><button class="btn btn-p" style="margin-top:12px" onclick="showPage(\'pg-data\')">⚙️ ไปตั้งค่า Sync</button></div>';
+    return;
+  }
+  const ys=[...new Set(trackerData.records.map(r=>r.year))].sort((a,b)=>b-a);
+  if(!ys.length){bar.innerHTML='';card.innerHTML='<div class="empty"><div class="big">📋</div>ยังไม่มีข้อมูลงบใน Audit Tracker</div>';return;}
+  if(!reserveYear||!ys.includes(reserveYear))reserveYear=ys[0];
+  const contacts=[...new Set(trackerData.records.filter(r=>r.year===reserveYear&&(r.contact||'').trim()).map(r=>r.contact.trim()))].sort((a,b)=>a.localeCompare(b,'th'));
+  if(reserveContact!=='__all__'&&!contacts.includes(reserveContact))reserveContact='__all__';
+  const nextY=reserveYear+1;
+  const sel='padding:7px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-weight:700;font-size:13.5px;max-width:52vw';
+  bar.innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:var(--muted)">งบปี</span>
+      <select onchange="reserveYear=+this.value;renderReserve()" style="${sel}">${ys.map(y=>`<option value="${y}" ${y===reserveYear?'selected':''}>ปี ${y}</option>`).join('')}</select>
+      <span style="font-size:12px;font-weight:700;color:var(--muted)">ส่งถึง</span>
+      <select onchange="reserveContact=this.value;renderReserve()" style="${sel}">
+        <option value="__all__" ${reserveContact==='__all__'?'selected':''}>— ทุกคน (${fmtN(contacts.length)}) —</option>
+        ${contacts.map(c=>`<option value="${esc(c)}" ${c===reserveContact?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-top:9px"><button class="btn btn-g" onclick="copyReserve()">📄 คัดลอกเป็นข้อความ (วางใน Line)</button></div>`;
+  const recs=reserveList(),totalFee=recs.reduce((s,r)=>s+(r.fee||0),0);
+  const rowHtml=(r,i)=>`<div class="resrow"><div class="resn">${i}</div><div style="flex:1;min-width:0"><div class="resc">${esc(r.company)}</div>${r.taxId?`<div class="rest">เลขภาษี ${esc(r.taxId)}</div>`:''}</div>${r.fee?`<div class="resf">${fmtB(r.fee)}</div>`:''}</div>`;
+  let listHtml;
+  if(!recs.length){listHtml='<div style="text-align:center;color:var(--muted);padding:22px">— ไม่มีกิจการในเงื่อนไขนี้ —</div>';}
+  else if(reserveContact==='__all__'){
+    const byC={};recs.forEach(r=>{const c=(r.contact||'').trim()||'(ไม่ระบุคนติดต่อ)';(byC[c]=byC[c]||[]).push(r);});
+    listHtml=Object.keys(byC).sort((a,b)=>a.localeCompare(b,'th')).map(c=>{let i=0;
+      return `<div class="resgrp">👤 ${esc(c)} <span style="font-weight:600;color:var(--muted)">(${fmtN(byC[c].length)} กิจการ)</span></div>`+byC[c].map(r=>rowHtml(r,++i)).join('');
+    }).join('');
+  }else{let i=0;listHtml=recs.map(r=>rowHtml(r,++i)).join('');}
+  card.innerHTML=`
+    <div class="resHead">
+      <div class="resBadge">📋 ยืนยันจองชื่อผู้สอบบัญชี · ปี ${nextY}</div>
+      <div class="resGreet">${esc(reserveGreet(nextY))}</div>
+      <div class="resRef">อ้างอิงจากงบการเงินปี ${reserveYear} ที่ตรวจสอบไปแล้ว</div>
+    </div>
+    ${listHtml}
+    <div class="resSum">รวม ${fmtN(recs.length)} กิจการ${totalFee?' · ค่าสอบปี '+reserveYear+' รวม '+fmtB(totalFee):''}</div>`;
+}
+function copyReserve(){
+  const nextY=reserveYear+1,recs=reserveList();
+  const L=['📋 ยืนยันจองชื่อผู้สอบบัญชี ปี '+nextY,'',reserveGreet(nextY),''];
+  if(reserveContact==='__all__'){
+    const byC={};recs.forEach(r=>{const c=(r.contact||'').trim()||'(ไม่ระบุคนติดต่อ)';(byC[c]=byC[c]||[]).push(r);});
+    Object.keys(byC).sort((a,b)=>a.localeCompare(b,'th')).forEach(c=>{L.push('👤 '+c);byC[c].forEach((r,i)=>L.push('  '+(i+1)+'. '+r.company+(r.taxId?' ('+r.taxId+')':'')));L.push('');});
+  }else{recs.forEach((r,i)=>L.push((i+1)+'. '+r.company+(r.taxId?' ('+r.taxId+')':'')));L.push('');}
+  L.push('รวม '+recs.length+' กิจการ (อ้างอิงงบปี '+reserveYear+')');
+  const txt=L.join('\n');
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject())
+    .then(()=>toast('📄 คัดลอกแล้ว วางใน Line ได้เลย')).catch(()=>{
+      const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');toast('📄 คัดลอกแล้ว วางใน Line ได้เลย');}catch(e){toast('⚠️ คัดลอกไม่สำเร็จ');}
+      ta.remove();
+    });
+}
 function growBadge(e,a){
   if(!e&&!a)return'';
   const d=e-a; // คาดปีหน้า − จริงปีก่อน
@@ -921,7 +1019,7 @@ async function syncNow(manual,retried){
     const pg=document.querySelector('.page.show').id;
     if(pg==='pg-list')renderList();else if(pg==='pg-budget')renderBudget();else if(pg==='pg-data')renderDataStat();
     if(manual)toast('☁️ Sync สำเร็จ ('+fmtN(live().length)+' คอนแทค)');
-    loadTrackerData().then(()=>{const p=document.querySelector('.page.show').id;if(p==='pg-list')renderList();else if(p==='pg-form')updTrkPreview();else if(p==='pg-budget'&&typeof renderBudget==='function')renderBudget();else if(p==='pg-actual')renderActual();});
+    loadTrackerData().then(()=>{const p=document.querySelector('.page.show').id;if(p==='pg-list')renderList();else if(p==='pg-form')updTrkPreview();else if(p==='pg-budget'&&typeof renderBudget==='function')renderBudget();else if(p==='pg-actual')renderActual();else if(p==='pg-reserve')renderReserve();});
   }catch(err){
     console.error('sync:',err);
     syncing=false;
