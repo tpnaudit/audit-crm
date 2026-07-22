@@ -295,6 +295,8 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <input type="file" id="impJson" accept=".json" style="display:none">
   <button class="dbtn" onclick="document.getElementById('impTax').click()"><span class="ico">📥</span><span><span class="t">Import เลขนิติบุคคล (Excel)</span><br><span class="d">Export รายชื่อ → กรอกคอลัมน์ “เลขนิติบุคคล” ใน Excel → เลือกไฟล์กลับเข้ามา (จับคู่ด้วยชื่อคอนแทค เติมเฉพาะเลข ไม่แตะข้อมูลอื่น)</span></span></button>
   <input type="file" id="impTax" accept=".xlsx,.xls,.csv" style="display:none">
+  <button class="dbtn" onclick="document.getElementById('impFull').click()"><span class="ico">📊</span><span><span class="t">Import / อัปเดตจาก Excel (ทุกคอลัมน์)</span><br><span class="d">แก้หลายคอลัมน์ใน Excel แล้ว import กลับ — จับคู่ด้วยชื่อคอนแทค อัปเดตทุกช่องที่กรอก + เพิ่มคอนแทคใหม่ถ้าชื่อยังไม่มี (ช่องที่เว้นว่างไม่ลบของเดิม)</span></span></button>
+  <input type="file" id="impFull" accept=".xlsx,.xls,.csv" style="display:none">
   <button class="dbtn" onclick="resetAll()"><span class="ico">🗑️</span><span><span class="t" style="color:var(--red)">ล้างข้อมูลทั้งหมด</span><br><span class="d">ลบคอนแทคทุกรายการในเครื่องนี้</span></span></button>
   <div class="lsum" id="dataStat"></div>
 </section>
@@ -933,6 +935,92 @@ document.getElementById('impTax').addEventListener('change',e=>{
     if(!upd){toast('ℹ️ ไม่มีเลขนิติบุคคลใหม่ให้เติม'+(miss?' ('+miss+' ชื่อไม่ตรงกับในระบบ)':''));return;}
     save();renderList();renderDataStat();
     toast('📥 เติมเลขนิติบุคคลแล้ว '+upd+' ราย'+(miss?' · ข้าม '+miss+' (ชื่อไม่ตรง)':''));
+  }catch(err){console.error(err);toast('⚠️ อ่านไฟล์ไม่สำเร็จ — ต้องเป็น Excel/CSV ที่ export จากแอปนี้');}};
+  rd.readAsArrayBuffer(f);
+});
+/* ===== Import แบบเต็ม: อัปเดตทุกคอลัมน์ + เพิ่มคอนแทคใหม่ (จับคู่ด้วยชื่อ) ===== */
+const CRM_COLMAP=[
+  {names:['ชื่อคอนแทค','ชื่อ','name'],f:'name'},
+  {names:['สังกัด'],f:'orgType'},
+  {names:['ชื่อสำนักงาน','บริษัท/สังกัด','บริษัท'],f:'org'},
+  {names:['เลขนิติบุคคล','เลขทะเบียนนิติบุคคล','เลขประจำตัวผู้เสียภาษี','เลขผู้เสียภาษี','เลขภาษี'],f:'taxId'},
+  {names:['เบอร์โทร','โทร','phone'],f:'phone'},
+  {names:['ชื่อไลน์','line id','line'],f:'line'},
+  {names:['facebook','fb'],f:'fb'},
+  {names:['email','อีเมล'],f:'email'},
+  {names:['ช่องทางหลัก','ช่องทาง'],f:'channel'},
+  {names:['ที่มา','รู้จักผ่าน','source'],f:'source'},
+  {names:['stage','สถานะ'],f:'stage'},
+  {names:['remark','โน้ต','note'],f:'remark'},
+  {names:['คุยล่าสุด'],f:'lastContact'},
+  {names:['นัดตามถัดไป','นัดตาม'],f:'followUp'},
+  {names:['จำนวนงบ','งบคาด'],f:'expQty'},
+  {names:['ค่าสอบเฉลี่ย','เฉลี่ย/งบ'],f:'expAvg'},
+];
+function parseAnyDate(v){
+  if(v==null||v==='')return'';
+  if(v instanceof Date)return normD(v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0'));
+  let s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return normD(m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'));
+  m=s.match(/^(\d{1,2})\s+(\S+?)\s+(\d{2,4})$/);
+  if(m){const mi=THM.indexOf(m[2]);if(mi>=0){let y=+m[3];if(y<100)y+=2500;return normD(y+'-'+String(mi+1).padStart(2,'0')+'-'+m[1].padStart(2,'0'));}}
+  return '';
+}
+document.getElementById('impFull').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f){return;}e.target.value='';
+  if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
+  const rd=new FileReader();
+  rd.onload=()=>{try{
+    const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+    if(!aoa.length)throw 0;
+    const hdr=aoa[0];
+    const col={};CRM_COLMAP.forEach(c=>{col[c.f]=findCol(hdr,c.names);});
+    if(col.name<0){toast('⚠️ ไม่พบคอลัมน์ "ชื่อคอนแทค" ในไฟล์');return;}
+    const CH=Object.entries(CHANNELS),ST=Object.entries(STAGES);
+    const lbMatch=(entries,val)=>{const s=String(val==null?'':val).trim().toLowerCase();if(!s)return'';for(const[k,v]of entries){const lb=v.lb.toLowerCase();if(s===lb||s.includes(lb))return k;}return'';};
+    const byName={};live().forEach(r=>{byName[normName(r.name)]=r;});
+    const get=(row,fld)=>col[fld]>=0?row[col[fld]]:'';
+    const str=v=>String(v==null?'':v).trim();
+    const numv=v=>{const n=parseFloat(String(v).replace(/,/g,''));return isNaN(n)?null:n;};
+    /* วางแผนก่อน — ยังไม่แตะ records จริง จนกว่าจะกดยืนยัน */
+    const ops=[];const planned={};let skip=0;
+    for(let i=1;i<aoa.length;i++){
+      const row=aoa[i];if(!row)continue;
+      const nm=str(get(row,'name'));if(!nm)continue;
+      if(/^รวม\s/.test(nm)){skip++;continue;} // ข้ามแถวสรุป
+      const key=normName(nm);
+      const rec=planned[key]||byName[key];const isNew=!rec;
+      const base=isNew?{stage:'none',name:nm}:rec;const patch=planned[key]?{...planned[key]._patch}:{};
+      const put=(fld,val)=>{if(val!==''&&val!=null){const cur=(fld in patch)?patch[fld]:base[fld];if(cur!==val)patch[fld]=val;}};
+      if(col.orgType>=0)put('orgType',str(get(row,'orgType')));
+      if(col.org>=0)put('org',str(get(row,'org')));
+      if(col.taxId>=0)put('taxId',cleanTaxId(get(row,'taxId')));
+      if(col.phone>=0)put('phone',str(get(row,'phone')));
+      if(col.line>=0)put('line',str(get(row,'line')));
+      if(col.fb>=0)put('fb',str(get(row,'fb')));
+      if(col.email>=0)put('email',str(get(row,'email')));
+      if(col.source>=0)put('source',str(get(row,'source')));
+      if(col.remark>=0)put('remark',str(get(row,'remark')));
+      if(col.channel>=0){const c=lbMatch(CH,get(row,'channel'));if(c)put('channel',c);}
+      if(col.stage>=0){const s=lbMatch(ST,get(row,'stage'));if(s)put('stage',s);}
+      if(col.lastContact>=0){const d=parseAnyDate(get(row,'lastContact'));if(d)put('lastContact',d);}
+      if(col.followUp>=0){const d=parseAnyDate(get(row,'followUp'));if(d)put('followUp',d);}
+      if(col.expQty>=0){const n=numv(get(row,'expQty'));if(n!=null)put('expQty',n);}
+      if(col.expAvg>=0){const n=numv(get(row,'expAvg'));if(n!=null)put('expAvg',n);}
+      if(planned[key]){planned[key]._patch=patch;continue;}
+      const op={isNew,rec:isNew?null:rec,name:nm,_patch:patch};
+      planned[key]=op;ops.push(op);
+    }
+    const adds=ops.filter(o=>o.isNew);
+    const upds=ops.filter(o=>!o.isNew&&Object.keys(o._patch).length);
+    if(!upds.length&&!adds.length){toast('ℹ️ ไม่มีอะไรเปลี่ยน'+(skip?' (ข้ามแถวสรุป '+skip+')':''));return;}
+    if(!confirm('จะอัปเดต '+upds.length+' ราย และเพิ่มคอนแทคใหม่ '+adds.length+' ราย\n\nกด OK เพื่อบันทึก')){toast('ยกเลิกแล้ว');return;}
+    let ord=Math.max(0,...records.map(x=>x.order||0),0);
+    upds.forEach(o=>{Object.assign(o.rec,o._patch);if(o.rec.orgType==='Freelance')o.rec.org='';o.rec.updatedAt=Date.now();});
+    adds.forEach(o=>{const r=Object.assign({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),order:++ord,name:o.name,stage:'none',updatedAt:Date.now()},o._patch);if(r.orgType==='Freelance')r.org='';records.push(r);});
+    save();renderList();renderDataStat();
+    toast('📊 อัปเดต '+upds.length+' ราย · เพิ่มใหม่ '+adds.length+' ราย');
   }catch(err){console.error(err);toast('⚠️ อ่านไฟล์ไม่สำเร็จ — ต้องเป็น Excel/CSV ที่ export จากแอปนี้');}};
   rd.readAsArrayBuffer(f);
 });
