@@ -241,6 +241,7 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
       <div><label>เบอร์โทร</label><input id="f_phone" inputmode="tel" placeholder="08x-xxx-xxxx"></div>
     </div>
     <div class="frow one" id="orgNameRow"><div><label id="orgNameLb">ชื่อสำนักงาน / บริษัท</label><input id="f_org" placeholder="เช่น One Bizz"></div></div>
+    <div class="frow one"><div><label>เลขนิติบุคคล (13 หลัก)</label><input id="f_taxId" inputmode="numeric" maxlength="13" placeholder="เช่น 0105551000011"></div></div>
     <div class="frow">
       <div><label>ชื่อไลน์ / Line ID</label><input id="f_line" placeholder="ชื่อที่โชว์ใน Line"></div>
       <div><label>ชื่อ Facebook</label><input id="f_fb" placeholder="ชื่อโปรไฟล์ FB"></div>
@@ -292,6 +293,8 @@ label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bot
   <button class="dbtn" onclick="exportJSON()"><span class="ico">🗄️</span><span><span class="t">สำรองข้อมูล (JSON)</span><br><span class="d">ดาวน์โหลดคอนแทคทั้งหมด ไว้ย้ายเครื่อง/กันข้อมูลหาย</span></span></button>
   <button class="dbtn" onclick="document.getElementById('impJson').click()"><span class="ico">♻️</span><span><span class="t">กู้คืนจาก JSON</span><br><span class="d">แทนที่ข้อมูลทั้งหมดด้วยไฟล์สำรอง</span></span></button>
   <input type="file" id="impJson" accept=".json" style="display:none">
+  <button class="dbtn" onclick="document.getElementById('impTax').click()"><span class="ico">📥</span><span><span class="t">Import เลขนิติบุคคล (Excel)</span><br><span class="d">Export รายชื่อ → กรอกคอลัมน์ “เลขนิติบุคคล” ใน Excel → เลือกไฟล์กลับเข้ามา (จับคู่ด้วยชื่อคอนแทค เติมเฉพาะเลข ไม่แตะข้อมูลอื่น)</span></span></button>
+  <input type="file" id="impTax" accept=".xlsx,.xls,.csv" style="display:none">
   <button class="dbtn" onclick="resetAll()"><span class="ico">🗑️</span><span><span class="t" style="color:var(--red)">ล้างข้อมูลทั้งหมด</span><br><span class="d">ลบคอนแทคทุกรายการในเครื่องนี้</span></span></button>
   <div class="lsum" id="dataStat"></div>
 </section>
@@ -426,6 +429,7 @@ function renderList(){
         <div style="flex:1;min-width:0">
           <div class="nm">${esc(r.name)}</div>
           ${orgLabel(r)?`<div class="org">${esc(orgLabel(r))}</div>`:''}
+          ${r.taxId?`<div class="org">🏢 เลขนิติบุคคล ${esc(r.taxId)}</div>`:''}
         </div>
       </div>
       <div class="meta">
@@ -500,7 +504,7 @@ function fillSourceSel(cur){
 }
 function resetForm(){
   F('f_id').value='';document.getElementById('formTitle').textContent='เพิ่มคอนแทคใหม่';
-  ['f_name','f_org','f_phone','f_line','f_fb','f_email','f_remark','f_lastContact','f_followUp'].forEach(id=>F(id).value='');
+  ['f_name','f_org','f_taxId','f_phone','f_line','f_fb','f_email','f_remark','f_lastContact','f_followUp'].forEach(id=>F(id).value='');
   F('f_channel').value='';fillSourceSel('');F('f_orgType').value='';updOrgRow();
   document.getElementById('dupHint').style.display='none';
   document.getElementById('trkPreview').style.display='none';
@@ -512,7 +516,7 @@ function editRec(id){
   const r=findRec(id);if(!r)return;
   resetForm();
   document.getElementById('formTitle').textContent='แก้ไข: '+r.name;
-  F('f_id').value=r.id;F('f_name').value=r.name;F('f_org').value=r.org||'';
+  F('f_id').value=r.id;F('f_name').value=r.name;F('f_org').value=r.org||'';F('f_taxId').value=r.taxId||'';
   F('f_orgType').value=r.orgType||'';updOrgRow();
   F('f_phone').value=r.phone||'';F('f_line').value=r.line||'';F('f_fb').value=r.fb||'';
   F('f_email').value=r.email||'';fillSourceSel(r.source||'');F('f_channel').value=r.channel||'';
@@ -566,6 +570,7 @@ function saveForm(){
   const orgType=F('f_orgType').value;
   Object.assign(rec,{
     name,orgType,org:orgType==='Freelance'?'':F('f_org').value.trim(),
+    taxId:F('f_taxId').value.replace(/[^0-9]/g,''),
     phone:F('f_phone').value.trim(),line:F('f_line').value.trim(),
     fb:F('f_fb').value.trim(),email:F('f_email').value.trim(),source:F('f_source').value.trim(),
     channel:F('f_channel').value,lastContact:F('f_lastContact').value,followUp:F('f_followUp').value,
@@ -684,18 +689,18 @@ function exportContactsExcel(){
   if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
   const rs=filtered();
   if(!rs.length){toast('⚠️ ไม่มีคอนแทคตามที่กรอง');return;}
-  const hdr=['ลำดับ','ชื่อคอนแทค','สังกัด','ชื่อสำนักงาน','เบอร์โทร','ชื่อไลน์','Facebook','Email','ช่องทางหลัก','ที่มา','Stage','Remark','คุยล่าสุด','นัดตามถัดไป','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
-  const rows=rs.map((r,i)=>[i+1,r.name,r.orgType||'',r.org||'',r.phone||'',r.line||'',r.fb||'',r.email||'',
+  const hdr=['ลำดับ','ชื่อคอนแทค','สังกัด','ชื่อสำนักงาน','เลขนิติบุคคล','เบอร์โทร','ชื่อไลน์','Facebook','Email','ช่องทางหลัก','ที่มา','Stage','Remark','คุยล่าสุด','นัดตามถัดไป','จำนวนงบ (คาด)','ค่าสอบเฉลี่ย/งบ','รายได้คาด'];
+  const rows=rs.map((r,i)=>[i+1,r.name,r.orgType||'',r.org||'',r.taxId?String(r.taxId):'',r.phone||'',r.line||'',r.fb||'',r.email||'',
     r.channel&&CHANNELS[r.channel]?CHANNELS[r.channel].lb:'',r.source||'',(STAGES[r.stage]||STAGES.none).lb,r.remark||'',
     r.lastContact?fmtD(r.lastContact):'',r.followUp?fmtD(r.followUp):'',+r.expQty||0,+r.expAvg||0,0]);
   const totalRow=Array(hdr.length).fill('');totalRow[1]='รวม '+rs.length+' ราย';
   const ws=XLSX.utils.aoa_to_sheet([hdr,...rows,totalRow]);
   const lastRow=rows.length+1;
   rows.forEach((_,i)=>{const n=i+2;
-    ws[XLSX.utils.encode_cell({r:i+1,c:16})]={t:'n',f:`O${n}*P${n}`};});
-  [14,16].forEach(c=>{const L=XLSX.utils.encode_col(c);
+    ws[XLSX.utils.encode_cell({r:i+1,c:17})]={t:'n',f:`P${n}*Q${n}`};});
+  [15,17].forEach(c=>{const L=XLSX.utils.encode_col(c);
     ws[XLSX.utils.encode_cell({r:lastRow,c})]={t:'n',f:`SUM(${L}2:${L}${lastRow})`};});
-  ws['!cols']=[{wch:6},{wch:30},{wch:16},{wch:22},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
+  ws['!cols']=[{wch:6},{wch:30},{wch:16},{wch:22},{wch:16},{wch:14},{wch:16},{wch:18},{wch:22},{wch:13},{wch:16},{wch:26},{wch:30},{wch:12},{wch:12},{wch:13},{wch:14},{wch:13}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'รายชื่อคอนแทค');
   const stTxt=stageFilter?' - '+(STAGES[stageFilter]?STAGES[stageFilter].lb:'ตามนัด'):'';
@@ -761,8 +766,8 @@ function renderReserve(){
       </select>
     </div>
     <div style="margin-top:9px"><button class="btn btn-g" onclick="copyReserve()">📄 คัดลอกเป็นข้อความ (วางใน Line)</button></div>`;
-  const recs=reserveList(),totalFee=recs.reduce((s,r)=>s+(r.fee||0),0);
-  const rowHtml=(r,i)=>`<div class="resrow"><div class="resn">${i}</div><div style="flex:1;min-width:0"><div class="resc">${esc(r.company)}</div>${r.taxId?`<div class="rest">เลขภาษี ${esc(r.taxId)}</div>`:''}</div>${r.fee?`<div class="resf">${fmtB(r.fee)}</div>`:''}</div>`;
+  const recs=reserveList();
+  const rowHtml=(r,i)=>`<div class="resrow"><div class="resn">${i}</div><div style="flex:1;min-width:0"><div class="resc">${esc(r.company)}</div>${r.taxId?`<div class="rest">เลขนิติบุคคล ${esc(r.taxId)}</div>`:''}</div></div>`;
   let listHtml;
   if(!recs.length){listHtml='<div style="text-align:center;color:var(--muted);padding:22px">— ไม่มีกิจการในเงื่อนไขนี้ —</div>';}
   else if(reserveContact==='__all__'){
@@ -778,7 +783,7 @@ function renderReserve(){
       <div class="resRef">อ้างอิงจากงบการเงินปี ${reserveYear} ที่ตรวจสอบไปแล้ว</div>
     </div>
     ${listHtml}
-    <div class="resSum">รวม ${fmtN(recs.length)} กิจการ${totalFee?' · ค่าสอบปี '+reserveYear+' รวม '+fmtB(totalFee):''}</div>`;
+    <div class="resSum">รวม ${fmtN(recs.length)} กิจการ · อ้างอิงงบปี ${reserveYear}</div>`;
 }
 function copyReserve(){
   const nextY=reserveYear+1,recs=reserveList();
@@ -893,6 +898,43 @@ document.getElementById('impJson').addEventListener('change',e=>{
     records=recs;save();renderList();renderDataStat();toast('♻️ กู้คืนแล้ว '+recs.length+' รายการ');
   }catch(err){toast('⚠️ ไฟล์ไม่ถูกต้อง');}};
   rd.readAsText(f);e.target.value='';
+});
+/* เลขนิติบุคคล/ผู้เสียภาษี 13 หลัก — กู้เลข 0 นำหน้าที่ Excel ตัดทิ้ง + เลขวิทยาศาสตร์ */
+function cleanTaxId(v){
+  let s=(v==null?'':String(v)).trim();if(!s)return'';
+  if(/[eE]\+/.test(s)&&isFinite(+s))s=(+s).toFixed(0);
+  s=s.replace(/[^0-9]/g,'');
+  if(s.length===12)s='0'+s;
+  return s;
+}
+const COL_NAME=['ชื่อคอนแทค','ชื่อกิจการ','กิจการ','ชื่อ','contact','name','company'];
+const COL_TAX=['เลขนิติบุคคล','เลขทะเบียนนิติบุคคล','เลขประจำตัวผู้เสียภาษี','เลขผู้เสียภาษี','เลขภาษี','taxid','tax id'];
+function findCol(hdr,cands){for(let i=0;i<hdr.length;i++){const h=String(hdr[i]||'').trim().toLowerCase();if(cands.some(c=>h===c.toLowerCase()||h.includes(c.toLowerCase())))return i;}return -1;}
+document.getElementById('impTax').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f){return;}e.target.value='';
+  if(typeof XLSX==='undefined'){toast('⚠️ ต้องต่อเน็ตครั้งแรกเพื่อโหลดตัวช่วย Excel');return;}
+  const rd=new FileReader();
+  rd.onload=()=>{try{
+    const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    if(!aoa.length)throw 0;
+    const hdr=aoa[0];
+    const ci=findCol(hdr,COL_NAME),ti=findCol(hdr,COL_TAX);
+    if(ci<0||ti<0){toast('⚠️ ไม่พบคอลัมน์ "ชื่อคอนแทค" หรือ "เลขนิติบุคคล" ในไฟล์');return;}
+    const byName={};live().forEach(r=>{byName[normName(r.name)]=r;});
+    let upd=0,miss=0;
+    for(let i=1;i<aoa.length;i++){
+      const nm=normName(aoa[i][ci]),tx=cleanTaxId(aoa[i][ti]);
+      if(!nm||!tx)continue;
+      const r=byName[nm];
+      if(r){if(r.taxId!==tx){r.taxId=tx;r.updatedAt=Date.now();upd++;}}else miss++;
+    }
+    if(!upd){toast('ℹ️ ไม่มีเลขนิติบุคคลใหม่ให้เติม'+(miss?' ('+miss+' ชื่อไม่ตรงกับในระบบ)':''));return;}
+    save();renderList();renderDataStat();
+    toast('📥 เติมเลขนิติบุคคลแล้ว '+upd+' ราย'+(miss?' · ข้าม '+miss+' (ชื่อไม่ตรง)':''));
+  }catch(err){console.error(err);toast('⚠️ อ่านไฟล์ไม่สำเร็จ — ต้องเป็น Excel/CSV ที่ export จากแอปนี้');}};
+  rd.readAsArrayBuffer(f);
 });
 function resetAll(){
   if(syncCfg&&syncCfg.token){toast('⚠️ กำลัง Sync อยู่ — กด "เลิกเชื่อมต่อ" ก่อน ไม่งั้นข้อมูลจะถูกดึงกลับจาก cloud');return;}
