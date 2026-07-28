@@ -748,8 +748,17 @@ function setResNote(k,v){v=String(v||'').trim();if(v)resNotes[k]=v;else delete r
 const isSigned=r=>!!(r&&(r.dateSigned||r.signedFlag));
 /* รอบปีบัญชีที่จะจอง: ปีหน้าถ้างบปีปัจจุบันลงชื่อแล้ว, มิฉะนั้นปีปัจจุบัน */
 const reserveRound=r=>isSigned(r)?reserveYear+1:reserveYear;
+/* งบเลิกกิจการ — ไม่ต้องดึงมาจองชื่อปีหน้า: ใช้ stmtType ถ้ามี, ไม่งั้นเดาจากวันสิ้นงวด (ไม่ใช่สิ้นเดือน=เลิกกิจการ) */
+function isLiquidation(r){
+  if(r.stmtType==='liq')return true;
+  if(r.stmtType==='op')return false;
+  const m=String(r.fyEnd||'').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(!m)return false;
+  const y=+m[1]-543,mo=+m[2],d=+m[3];
+  return d!==new Date(y,mo,0).getDate();
+}
 function reserveList(){
-  let recs=trackerData.records.filter(r=>r.year===reserveYear&&r.company);
+  let recs=trackerData.records.filter(r=>r.year===reserveYear&&r.company&&!isLiquidation(r));
   if(reserveContact!=='__all__')recs=recs.filter(r=>(r.contact||'').trim()===reserveContact);
   const seen=new Set();
   recs=recs.filter(r=>{const k=(r.contact||'')+'|'+r.company;if(seen.has(k))return false;seen.add(k);return true;});
