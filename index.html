@@ -864,6 +864,7 @@ function copyReserve(){
     Object.keys(byC).sort((a,b)=>a.localeCompare(b,'th')).forEach(c=>{L.push(''+c);byC[c].forEach((r,i)=>L.push(ln(r,i+1)));L.push('');});
   }else{recs.forEach((r,i)=>L.push(ln(r,i+1)));L.push('');}
   L.push('รวม '+recs.length+' กิจการ (อ้างอิงงบปี '+reserveYear+')');
+  L.push('','*หมายเหตุชื่อกิจการอาจไม่ตรงล่าสุดเพราะทาง TFAC ไม่อัพเดทข้อมูล Realtime*','และหากมีงบไหนที่ต้องการให้ผมจองชื่อเพิ่มเติมสามารถส่งรายชื่อมาภายใน 30 พฤศจิกายน เพื่อให้ทางผมจัดตารางงานได้เลยนะครับ','ขอบคุณมากๆครับ');
   const txt=L.join('\n');
   (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt):Promise.reject())
     .then(()=>toast('คัดลอกแล้ว วางใน Line ได้เลย')).catch(()=>{
