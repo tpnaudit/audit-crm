@@ -798,7 +798,9 @@ function isLiquidation(r){
   return d!==new Date(y,mo,0).getDate();
 }
 function reserveList(){
-  let recs=trackerData.records.filter(r=>r.year===reserveYear&&r.company&&!isLiquidation(r));
+  /* กิจการที่มีงบเลิกกิจการแล้ว (ปีนี้หรือก่อนหน้า) = ปิดไปแล้ว ไม่ต้องจองชื่อต่อ แม้จะมีงบปกติของปีก่อนอยู่ในปีเดียวกัน */
+  const liqKeys=new Set();trackerData.records.filter(r=>!r.deleted&&r.year<=reserveYear&&isLiquidation(r)).forEach(r=>{if(r.taxId)liqKeys.add('t:'+r.taxId);if(r.company)liqKeys.add('c:'+r.company);});
+  let recs=trackerData.records.filter(r=>r.year===reserveYear&&r.company&&!isLiquidation(r)&&!liqKeys.has('t:'+r.taxId)&&!liqKeys.has('c:'+r.company));
   if(reserveContact!=='__all__')recs=recs.filter(r=>(r.contact||'').trim()===reserveContact);
   const seen=new Set();
   recs=recs.filter(r=>{const k=(r.contact||'')+'|'+r.company;if(seen.has(k))return false;seen.add(k);return true;});
