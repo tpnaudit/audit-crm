@@ -205,6 +205,56 @@ body{letter-spacing:.002em}
 .card,.kpi,.item,.dbtn,.chip,.btn,nav button{transition:border-color .16s ease,background-color .16s ease,color .16s ease,filter .16s ease}
 .kpi:hover,.item:hover,.dbtn:hover{border-top-color:var(--p)}
 nav button:hover{color:var(--p)}
+
+/* ===================== v2 refinements (พ.ย. 2569) ===================== */
+/* ตัวเลขเรียงหลักตรงกัน */
+table,.kpi .v,.dhero-big,.dhero-stats b,.item .fee,.brow input,.brow .rev{font-variant-numeric:tabular-nums}
+/* มุมเดียวกันทั้งระบบ (4px) — ทับค่า inline เดิมที่ยังเป็น 9–12px */
+main button,main select,main textarea,main input:not([type=checkbox]):not([type=radio]),main [style*="border-radius"],#bulkBar,.note,.rmk{border-radius:4px !important}
+/* status pill โทนเดียวกับ palette */
+.b-green{background:#e3f4ec;color:#0b6b4b}.b-red{background:#fbe9e7;color:#b42318}
+.b-amber{background:#fbeee4;color:#9a4413}.b-blue{background:#dff0f1;color:#0e5e6f}.b-gray{background:#eef2f4;color:#4d5b63}
+.note{background:#fbf6ea;border-color:#ecdcae}
+/* ปุ่มในการ์ด: เส้นบางพื้นขาว · ปุ่มหลักเป็น tint teal · ลบเป็นไอคอนชิดขวา */
+.acts{gap:6px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+.acts button,.acts select{background:#fff;border:1px solid var(--line);color:var(--ink);padding:6px 11px;font-size:12.5px;font-weight:600;font-family:inherit}
+.acts button:hover,.acts select:hover{border-color:#0e5e6f;color:#0e5e6f;filter:none}
+.acts .a-sign,.acts .a-paid,.acts .a-st{background:#dff0f1;border-color:#dff0f1;color:#0e5e6f}
+.acts .a-del{margin-left:auto;border-color:transparent;background:none;color:#b42318;padding:6px 8px}
+.acts .a-del:hover{background:#fbe9e7;border-color:#fbe9e7;color:#b42318}
+/* แถวตาราง */
+table tr:hover td{background:#f6fafb}
+/* focus ที่มองเห็นได้เมื่อใช้คีย์บอร์ด */
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #1a8a9a;outline-offset:2px}
+/* toast + ปุ่มเลิกทำ */
+#toast{border-radius:4px;max-width:92vw}
+#toast.act{pointer-events:auto}
+#toast button{margin-left:14px;background:none;border:none;color:#8fe0e3;font-weight:700;font-size:13.5px;text-decoration:underline;text-underline-offset:3px}
+/* จอกว้าง: เมนูเป็นแถบด้านซ้าย + การ์ด 2 คอลัมน์ */
+@media(min-width:960px){
+  body{padding-bottom:0;padding-left:88px}
+  header{height:64px;padding-top:0;padding-bottom:0;display:flex;align-items:center}
+  .hrow{width:100%}
+  nav{top:0;bottom:0;right:auto;width:88px;flex-direction:column;justify-content:flex-start;gap:2px;padding:0 7px 12px;border-top:none;border-right:1px solid var(--line)}
+  nav::before{content:'TPN';box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;height:64px;margin:0 -8px 10px -7px;background:#0e5e6f;border-bottom:3px solid #1a8a9a;color:#fff;font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:.12em}
+  nav button{flex:none;padding:11px 2px 9px;border-radius:4px}
+  nav button.active{background:var(--bg)}
+  #toast{bottom:28px;left:calc(50% + 44px)}
+  #listBox{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  #listBox .item{margin-bottom:0}
+  #listBox>.card,#listBox>.empty,#listBox>.mhead{grid-column:1/-1}
+}
+/* crm */
+.brow,.empty{border:1px solid var(--line);border-top:2px solid var(--teal);border-radius:0;box-shadow:none}
+.empty .big:empty{display:none}
+.kpi.hero{background:var(--p);border-color:var(--p);border-top-color:var(--teal)}
+.resHead{background:var(--p);border-radius:0;border-top:3px solid var(--teal)}
+.resSum{border-radius:0;background:#dff0f1}
+.item .seq{border-radius:4px;background:#dff0f1}
+.item .rmk{background:var(--bg)}
+.item .mv{display:flex;gap:4px;flex:none}
+.item .mv .a-mv{padding:3px 9px !important;font-size:13px;border-radius:4px}
+.acts .a-stsel{flex:1 1 120px;min-width:0;max-width:200px;padding:6px 8px}
 </style>
 </head>
 <body>
@@ -377,7 +427,7 @@ nav button:hover{color:var(--p)}
 <script src="sync-token.enc.js"></script>
 <script>
 /* ================= state ================= */
-const APP_VER='1.9';
+const APP_VER='2.0';
 const LS_KEY='auditCrmData';
 let records=[];
 try{
@@ -407,13 +457,16 @@ function fmtD(s){if(!s)return'-';let[y,m,d]=s.split('-').map(Number);if(y<2400)y
 const nextYearBE=new Date().getFullYear()+543+1;
 const fmtB=n=>'฿'+Math.round(n).toLocaleString('th-TH');
 const fmtN=n=>n.toLocaleString('th-TH');
+if(typeof Chart!=='undefined'){Chart.defaults.font.family="'IBM Plex Sans Thai',system-ui,sans-serif";Chart.defaults.color='#5d6b73';}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 const rev=r=>(+r.expQty||0)*(+r.expAvg||0);
 /* สังกัด: Freelance ไม่มีชื่อสำนักงาน / สนง.มีชื่อ / ข้อมูลเก่ามีแต่ org เดิม */
 const orgLabel=r=>r.orgType==='Freelance'?'Freelance':[r.orgType,r.org].filter(Boolean).join(' · ');
 
 /* ================= toast / nav ================= */
-let toastT;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+let toastT;function toast(m,undo){const t=document.getElementById('toast');t.textContent=m;
+  if(undo){const b=document.createElement('button');b.textContent='เลิกทำ';b.onclick=()=>{t.classList.remove('on','act');undo();};t.appendChild(b);}
+  t.classList.toggle('act',!!undo);t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on','act'),undo?6500:2200);}
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.pg)));
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('show',p.id===id));
@@ -465,7 +518,6 @@ function renderList(){
   let lastMh='';
   document.getElementById('listBox').innerHTML=rs.map((r,i)=>{
     const st=STAGES[r.stage]||STAGES.none;
-    const others=STAGE_ORDER.filter(k=>k!==r.stage);
     const seq=all.findIndex(x=>x.id===r.id)+1;
     let mhead='';
     if(stageFilter==='due'){
@@ -483,6 +535,7 @@ function renderList(){
           ${orgLabel(r)?`<div class="org">${esc(orgLabel(r))}</div>`:''}
           ${r.taxId?`<div class="org">เลขนิติบุคคล ${esc(r.taxId)}</div>`:''}
         </div>
+        ${canMove?`<div class="mv"><button class="a-mv" title="เลื่อนขึ้น" onclick="moveRec('${r.id}',-1)" ${i===0?'disabled':''}>↑</button><button class="a-mv" title="เลื่อนลง" onclick="moveRec('${r.id}',1)" ${i===rs.length-1?'disabled':''}>↓</button></div>`:''}
       </div>
       <div class="meta">
         <span class="badge ${st.cls}">${st.ico} ${st.lb}</span>
@@ -501,23 +554,24 @@ function renderList(){
       ${(r.lastContact||r.source)?`<div class="ct">${[r.lastContact?'คุยล่าสุด '+fmtD(r.lastContact):'',r.source?'ที่มา: '+esc(r.source):''].filter(Boolean).join(' · ')}</div>`:''}
       ${r.remark?`<div class="rmk">${esc(r.remark)}</div>`:''}
       <div class="acts">
-        <button class="a-st" style="background:#def7ec;color:#046c4e" onclick="talkedToday('${r.id}')">คุยวันนี้</button>
-        ${others.map(k=>`<button class="a-st" onclick="setStage('${r.id}','${k}')">→ ${STAGES[k].ico} ${STAGES[k].lb}</button>`).join('')}
+        <button class="a-st" onclick="talkedToday('${r.id}')">คุยวันนี้</button>
+        <select class="a-stsel" title="เปลี่ยน Stage" onchange="setStage('${r.id}',this.value)">${STAGE_ORDER.map(k=>`<option value="${k}" ${k===(STAGES[r.stage]?r.stage:'none')?'selected':''}>${STAGES[k].lb}</option>`).join('')}</select>
         <button class="a-edit" onclick="editRec('${r.id}')">แก้ไข</button>
-        ${canMove?`<button class="a-mv" onclick="moveRec('${r.id}',-1)" ${i===0?'disabled':''}>↑</button>
-        <button class="a-mv" onclick="moveRec('${r.id}',1)" ${i===rs.length-1?'disabled':''}>↓</button>`:''}
         <button class="a-del" onclick="delRec('${r.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m4 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
       </div>
     </div>`;
   }).join('');
 }
 function findRec(id){return records.find(r=>r.id===id);}
-function setStage(id,st){const r=findRec(id);if(!r)return;r.stage=st;r.updatedAt=Date.now();save();renderList();toast(STAGES[st].ico+' '+r.name+' → '+STAGES[st].lb);}
+/* ทำแล้วเลิกทำได้ (ปุ่ม "เลิกทำ" ใน toast) — คืนค่าทุกฟิลด์ของรายการนั้น แล้ว sync ตามปกติ */
+function undoable(r,fn,msg,after=renderList){const before=JSON.stringify(r);fn();r.updatedAt=Date.now();save();after();
+  toast(msg,()=>{const o=JSON.parse(before);Object.keys(r).forEach(k=>{if(!(k in o))r[k]=typeof r[k]==='boolean'?false:'';});
+    Object.assign(r,o);r.updatedAt=Date.now();save();after();toast('เลิกทำแล้ว');});}
+function setStage(id,st){const r=findRec(id);if(!r||r.stage===st)return;undoable(r,()=>{r.stage=st;},r.name+' → '+STAGES[st].lb);}
 function talkedToday(id){
   const r=findRec(id);if(!r)return;
-  r.lastContact=todayISO();
-  if(isDue(r))r.followUp='';   /* นัดที่ถึงคิวถือว่าตามแล้ว — นัดใหม่ตั้งได้ในฟอร์ม */
-  r.updatedAt=Date.now();save();renderList();toast('บันทึกคุยวันนี้: '+r.name);
+  /* นัดที่ถึงคิวถือว่าตามแล้ว — นัดใหม่ตั้งได้ในฟอร์ม */
+  undoable(r,()=>{const due=isDue(r);r.lastContact=todayISO();if(due)r.followUp='';},'บันทึกคุยวันนี้: '+r.name);
 }
 function moveRec(id,dir){
   const all=live();
@@ -529,7 +583,7 @@ function moveRec(id,dir){
   a.updatedAt=Date.now();b.updatedAt=Date.now();
   save();renderList();
 }
-function delRec(id){const r=findRec(id);if(!r)return;if(!confirm('ลบ "'+r.name+'" ?'))return;r.deleted=true;r.updatedAt=Date.now();save();renderList();toast('ลบแล้ว');}
+function delRec(id){const r=findRec(id);if(!r)return;if(!confirm('ลบ "'+r.name+'" ?'))return;undoable(r,()=>{r.deleted=true;},'ลบแล้ว: '+r.name);}
 
 /* ================= form ================= */
 const F=id=>document.getElementById(id);
@@ -646,9 +700,9 @@ function renderSrcChart(rs){
     type:'doughnut',
     data:{labels:keys.map(k=>`${k} (${byS[k]})`),
       datasets:[{data:keys.map(k=>byS[k]),
-        backgroundColor:['#0e8a74','#1a56db','#c27803','#8b5cf6','#e02424','#0e9f6e','#155a85','#9ca3af']}]},
+        backgroundColor:['#0e5e6f','#1a8a9a','#5cc4c8','#b4501b','#8aa0a8','#d9a441','#3f6f7a','#c9d6da']}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Noto Sans Thai'}}}}}});
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'IBM Plex Sans Thai'}}}}}});
 }
 function renderBudget(){
   document.getElementById('budTitle').textContent='Expected Budget ปีหน้า (พ.ศ. '+nextYearBE+')';
@@ -670,7 +724,7 @@ function renderBudget(){
     chBud=new Chart(document.getElementById('chBud'),{
       type:'bar',
       data:{labels:top.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),
-        datasets:[{label:'รายได้คาด (บาท)',data:top.map(r=>rev(r)),backgroundColor:'#0e8a74',borderRadius:5}]},
+        datasets:[{label:'รายได้คาด (บาท)',data:top.map(r=>rev(r)),backgroundColor:'#1a8a9a',borderRadius:2}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtB(c.raw)}}},
         scales:{x:{beginAtZero:true,ticks:{callback:v=>v>=1000?(v/1000)+'k':v}}}}});
@@ -820,7 +874,7 @@ function renderReserve(){
   }
   const ys=[...new Set(trackerData.records.map(r=>r.year))].sort((a,b)=>b-a);
   if(!ys.length){bar.innerHTML='';card.innerHTML='<div class="empty"><div class="big"></div>ยังไม่มีข้อมูลงบใน Audit Tracker</div>';return;}
-  if(!reserveYear||!ys.includes(reserveYear))reserveYear=ys[0];
+  if(!reserveYear||!ys.includes(reserveYear)){const ty=new Date().getFullYear()+543;reserveYear=ys.includes(ty)?ty:ys[0];} // เปิดมาที่งบปีปัจจุบัน → จองชื่อปีถัดไป
   const contacts=[...new Set(trackerData.records.filter(r=>r.year===reserveYear&&(r.contact||'').trim()).map(r=>r.contact.trim()))].sort((a,b)=>a.localeCompare(b,'th'));
   if(reserveContact!=='__all__'&&!contacts.includes(reserveContact))reserveContact='__all__';
   const nextY=reserveYear+1;
@@ -915,10 +969,10 @@ function renderActChart(){
     type:'bar',
     data:{labels:top.map(r=>r.name.length>18?r.name.slice(0,17)+'…':r.name),
       datasets:[
-        {label:'จริงปี '+(actualYear||''),data:top.map(r=>r.act),backgroundColor:'#155a85',borderRadius:5},
-        {label:'คาดปี '+nextYearBE,data:top.map(r=>r.exp),backgroundColor:'#0e8a74',borderRadius:5}]},
+        {label:'จริงปี '+(actualYear||''),data:top.map(r=>r.act),backgroundColor:'#0e5e6f',borderRadius:2},
+        {label:'คาดปี '+nextYearBE,data:top.map(r=>r.exp),backgroundColor:'#1a8a9a',borderRadius:2}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'Noto Sans Thai'}}},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{family:'IBM Plex Sans Thai'}}},
         tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtB(c.raw)}}},
       scales:{x:{beginAtZero:true,ticks:{callback:v=>v>=1000?(v/1000)+'k':v}}}}});
 }
@@ -947,7 +1001,7 @@ function renderActual(){
       <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
         <div style="background:#eef4f9;border-radius:10px;padding:9px 11px">
           <div style="font-size:11px;color:var(--muted);font-weight:600">จริงปี ${actualYear||'-'}</div>
-          <div style="font-weight:800;font-size:15px;color:#155a85">${fmtB(a.total)}</div>
+          <div style="font-weight:800;font-size:15px;color:#0e5e6f">${fmtB(a.total)}</div>
           <div style="font-size:11.5px;color:var(--muted)">${fmtN(a.count)} งบ${a.count?' · เฉลี่ย '+fmtB(a.total/a.count):''}</div>
         </div>
         ${r.inCrm?`<div style="background:#eef9f7;border-radius:10px;padding:9px 11px">
@@ -1004,7 +1058,7 @@ document.getElementById('impTax').addEventListener('change',e=>{
       const r=byName[nm];
       if(r){if(r.taxId!==tx){r.taxId=tx;r.updatedAt=Date.now();upd++;}}else miss++;
     }
-    if(!upd){toast('ℹไม่มีเลขนิติบุคคลใหม่ให้เติม'+(miss?' ('+miss+' ชื่อไม่ตรงกับในระบบ)':''));return;}
+    if(!upd){toast('ไม่มีเลขนิติบุคคลใหม่ให้เติม'+(miss?' ('+miss+' ชื่อไม่ตรงกับในระบบ)':''));return;}
     save();renderList();renderDataStat();
     toast('เติมเลขนิติบุคคลแล้ว '+upd+' ราย'+(miss?' · ข้าม '+miss+' (ชื่อไม่ตรง)':''));
   }catch(err){console.error(err);toast('อ่านไฟล์ไม่สำเร็จ — ต้องเป็น Excel/CSV ที่ export จากแอปนี้');}};
@@ -1086,7 +1140,7 @@ document.getElementById('impFull').addEventListener('change',e=>{
     }
     const adds=ops.filter(o=>o.isNew);
     const upds=ops.filter(o=>!o.isNew&&Object.keys(o._patch).length);
-    if(!upds.length&&!adds.length){toast('ℹไม่มีอะไรเปลี่ยน'+(skip?' (ข้ามแถวสรุป '+skip+')':''));return;}
+    if(!upds.length&&!adds.length){toast('ไม่มีอะไรเปลี่ยน'+(skip?' (ข้ามแถวสรุป '+skip+')':''));return;}
     if(!confirm('จะอัปเดต '+upds.length+' ราย และเพิ่มคอนแทคใหม่ '+adds.length+' ราย\n\nกด OK เพื่อบันทึก')){toast('ยกเลิกแล้ว');return;}
     let ord=Math.max(0,...records.map(x=>x.order||0),0);
     upds.forEach(o=>{Object.assign(o.rec,o._patch);if(o.rec.orgType==='Freelance')o.rec.org='';o.rec.updatedAt=Date.now();});
@@ -1114,7 +1168,7 @@ function renderDataStat(){
 const SYNC_KEY='auditCrmSync';
 const GH_FILE='https://api.github.com/repos/tpnaudit/audit-tracker-data/contents/crm.enc.json';
 const GH_BRANCH='main';
-let syncCfg=null,syncing=false,syncTimer=null;
+let syncCfg=null,syncing=false,syncTimer=null,syncDirty=false;
 try{syncCfg=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){}
 function saveSync(){localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg));}
 
@@ -1198,45 +1252,58 @@ function trackerContactList(){
   return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'));
 }
 function scheduleSync(){
-  if(!syncCfg||!syncCfg.token||syncing)return;
+  if(!syncCfg||!syncCfg.token)return;
+  if(syncing){syncDirty=true;return;} // แก้ระหว่างกำลัง sync → จำไว้ แล้ว sync ซ้ำเมื่อรอบนี้จบ (เดิมรายการนี้ไม่ถูกส่งขึ้น)
   clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),4000);
 }
+/* หลัง merge แล้ว ข้อมูลในเครื่องตรงกับบน cloud ทุกรายการหรือยัง — ตรงแล้วไม่ต้องส่งขึ้นซ้ำ */
+function sameAsRemote(data){
+  const rr=data.records||[];
+  if(rr.length!==records.length)return false;
+  const m=new Map(rr.map(r=>[r.id,r.updatedAt||0]));
+  return records.every(r=>m.has(r.id)&&m.get(r.id)===(r.updatedAt||0));
+}
+/* กำลังพิมพ์อยู่ในช่องกรอก → อย่า re-render ทับ (กันช่องหลุดโฟกัส/ข้อความหายตอน sync เสร็จ) */
+const isTyping=()=>{const a=document.activeElement;return !!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&a.closest('main'));};
+
 async function syncNow(manual,retried){
   if(!syncCfg||!syncCfg.token||!syncCfg.pin){if(manual){toast('ยังไม่ได้ตั้งค่า Sync');showPage('pg-data');}return;}
   if(syncing)return;
   syncing=true;setSyncUI('busy');
   try{
     const remote=await ghGet();
-    let sha=null;
+    let sha=null,same=false;
     if(remote){
       sha=remote.sha;
       const data=await decPayload(JSON.parse(remote.text),syncCfg.pin);
-      mergeData(data);
+      mergeData(data);same=sameAsRemote(data);
       try{localStorage.setItem(LS_KEY,JSON.stringify({version:1,records}));}catch(e){}
     }
-    const enc=await encPayload({records,pushedAt:Date.now()},syncCfg.pin);
-    await ghPut(JSON.stringify(enc),sha);
+    if(!same){
+      const enc=await encPayload({records,pushedAt:Date.now()},syncCfg.pin);
+      await ghPut(JSON.stringify(enc),sha);
+    }
     syncCfg.lastSync=Date.now();saveSync();
     setSyncUI('ok');
     const pg=document.querySelector('.page.show').id;
-    if(pg==='pg-list')renderList();else if(pg==='pg-budget')renderBudget();else if(pg==='pg-data')renderDataStat();
+    if(!isTyping()){if(pg==='pg-list')renderList();else if(pg==='pg-budget')renderBudget();else if(pg==='pg-data')renderDataStat();}
     if(manual)toast('Sync สำเร็จ ('+fmtN(live().length)+' คอนแทค)');
-    loadTrackerData().then(()=>{const p=document.querySelector('.page.show').id;if(p==='pg-list')renderList();else if(p==='pg-form')updTrkPreview();else if(p==='pg-budget'&&typeof renderBudget==='function')renderBudget();else if(p==='pg-actual')renderActual();else if(p==='pg-reserve')renderReserve();});
+    loadTrackerData().then(()=>{const p=document.querySelector('.page.show').id;if(p==='pg-form'){fillTrackerDatalist();updTrkPreview();return;}if(isTyping())return;if(p==='pg-list')renderList();else if(p==='pg-form')updTrkPreview();else if(p==='pg-budget'&&typeof renderBudget==='function')renderBudget();else if(p==='pg-actual')renderActual();else if(p==='pg-reserve')renderReserve();});
   }catch(err){
     console.error('sync:',err);
     syncing=false;
-    if(String(err.message).includes('409')&&!retried)return syncNow(manual,true);
+    if(String(err.message).includes('409')&&!retried)return await syncNow(manual,true);
     /* token หมดอายุ/ถูกเปลี่ยน — ลองถอดกุญแจที่ฝังมากับเว็บด้วย PIN เดิม แล้วต่อใหม่เอง */
     if(/401|403/.test(String(err.message))&&!retried&&window.SYNC_TOKEN_ENC&&syncCfg&&syncCfg.pin){
       try{
         const t=await decPayload(window.SYNC_TOKEN_ENC,syncCfg.pin);
-        if(t!==syncCfg.token){syncCfg.token=t;saveSync();return syncNow(manual,true);}
+        if(t!==syncCfg.token){syncCfg.token=t;saveSync();return await syncNow(manual,true);}
       }catch(e){}
     }
     if(String(err.name)==='OperationError'){setSyncUI('err');if(manual)toast('PIN ไม่ตรงกับข้อมูลบน cloud');return;}
     setSyncUI('err');
     if(manual)toast('Sync ไม่สำเร็จ: '+err.message);
-  }finally{syncing=false;}
+  }finally{syncing=false;if(syncDirty){syncDirty=false;scheduleSync();}}
 }
 function setSyncUI(st){
   const b=document.getElementById('syncBtn');
